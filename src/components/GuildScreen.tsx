@@ -14,14 +14,10 @@ import {
   Sparkles,
   ShoppingBag,
   ArrowUpCircle,
-  Coins,
-  ShieldAlert,
   Compass,
   ArrowRight,
   UserPlus,
-  Play,
-  Heart,
-  BookOpen
+  Play
 } from 'lucide-react';
 
 export const GuildScreen: React.FC = () => {
@@ -59,8 +55,7 @@ export const GuildScreen: React.FC = () => {
     }`;
   };
 
-  const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
-  const selectedHero = guild.roster.find((h) => h.id === selectedHeroId);
+const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
 
   // Toggle party hero selection
   const handleTogglePartyHero = (heroId: string) => {
@@ -615,7 +610,7 @@ export const GuildScreen: React.FC = () => {
       {showEmbarkDrawer && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-stone-950 border border-stone-850 rounded-sm max-w-4xl w-full p-6 md:p-8 flex flex-col max-h-[90vh] shadow-2xl relative">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(60,40,30,0.1),transparent_75%)] pointer-events-none z-0"></div>
+<div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(60,40,30,0.1),transparent)] pointer-events-none z-0"></div>
             
             <div className="relative z-10 flex flex-col h-full min-h-0">
               <div className="flex justify-between items-start mb-6">

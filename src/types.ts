@@ -127,7 +127,7 @@ export interface Dungeon {
   description: string;
   dangerRating: number; // 1 to 5 stars
   totalRooms: number;
-  rooms: DungeonRoom[];
+  rooms?: DungeonRoom[];
   rewardsPreview: string;
 }
 

@@ -7,7 +7,7 @@ import React from 'react';
 import { Hero, Equipment } from '../types';
 import { Portrait } from './Portrait';
 import { getModifiedStats } from '../utils';
-import { Shield, Swords, Zap, HelpCircle, AlertCircle, Heart, Star, Compass, Trash2 } from 'lucide-react';
+import { Shield, Swords, Zap, Heart, Compass, Trash2 } from 'lucide-react';
 
 interface HeroCardProps {
   hero: Hero;

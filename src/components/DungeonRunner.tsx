@@ -66,8 +66,26 @@ export const DungeonRunner: React.FC = () => {
     );
   }
 
+  if (!expedition.dungeon?.rooms?.length) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
+        <AlertTriangle className="text-amber-500 mb-3 animate-bounce" size={44} />
+        <h3 className="text-lg font-bold text-stone-100 uppercase tracking-wide">Dungeon Data Unavailable</h3>
+        <p className="text-xs text-stone-400 mt-1 max-w-sm text-center font-sans">
+          The current expedition is missing dungeon room data. Please restart the expedition from the Guild Hall.
+        </p>
+        <button
+          onClick={() => setActiveScreen('guild')}
+          className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
+        >
+          Return to Guild Hall
+        </button>
+      </div>
+    );
+  }
+
   const { dungeon, party, currentRoomIndex, status, logs, goldEarned, lootEarned, speed } = expedition;
-  const activeRoom = dungeon.rooms[currentRoomIndex];
+  const activeRoom = dungeon.rooms![currentRoomIndex];
 
   // Auto-scrolling battle logs
   useEffect(() => {
@@ -164,13 +182,13 @@ export const DungeonRunner: React.FC = () => {
           </h2>
           <div className="text-xs text-stone-400 mt-1 font-sans font-semibold">
             Room <span className="text-stone-200 font-bold">{currentRoomIndex + 1}</span> of{' '}
-            <span className="text-stone-200 font-bold">{dungeon.rooms.length}</span>
+            <span className="text-stone-200 font-bold">{dungeon.rooms?.length}</span>
           </div>
         </div>
 
         {/* Horizontal Map Bar */}
         <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-2 px-4 bg-stone-950 border border-stone-850 rounded-sm shrink-1">
-          {dungeon.rooms.map((room, i) => {
+          {(dungeon.rooms ?? []).map((room, i) => {
             const isActive = i === currentRoomIndex;
             const isCleared = i < currentRoomIndex;
             return (

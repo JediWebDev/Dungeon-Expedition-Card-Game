@@ -7,35 +7,24 @@ import React, { useState } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { GuildScreen } from './components/GuildScreen';
 import { DungeonRunner } from './components/DungeonRunner';
-import {
-  Coins,
-  Shield,
-  Activity,
-  Compass,
-  Award,
-  Edit2,
-  Check,
-  ChevronRight,
-  Sparkles,
-  HelpCircle
-} from 'lucide-react';
+import { Shield, Compass, Edit2, Check } from 'lucide-react';
 
 function DashboardContent() {
-  const { guild, expedition, activeScreen, setActiveScreen } = useGame();
+  const { guild, expedition, activeScreen, setActiveScreen, renameGuild } = useGame();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(guild.name);
 
   // Edit Guild Name handler
   const handleSaveName = () => {
     if (!editedName.trim()) return;
-    guild.name = editedName.trim(); // Directly sync state bounds
+    renameGuild(editedName.trim());
     setIsEditingName(false);
   };
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-200 flex flex-col font-serif selection:bg-amber-500/30 selection:text-amber-200 antialiased relative">
       {/* Ambient glowing radial gradient background */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(60,40,30,0.12),transparent_70%)] pointer-events-none z-0"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(60,40,30,0.12),transparent)] pointer-events-none z-0"></div>
 
       {/* 1. TOP STATS RESOURCE BANNER */}
       <header className="bg-stone-900/50 backdrop-blur-md border-b border-stone-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0 shadow-lg relative z-20">

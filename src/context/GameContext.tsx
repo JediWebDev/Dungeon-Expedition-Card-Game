@@ -475,7 +475,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!expedition) return;
 
     const nextIndex = expedition.currentRoomIndex + 1;
-    const isFinished = nextIndex >= expedition.dungeon.rooms.length;
+    const roomCount = expedition.dungeon.rooms?.length ?? 0;
+    const isFinished = nextIndex >= roomCount;
 
     if (isFinished) {
       // expedition run is completed successfully!
@@ -562,13 +563,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setExpedition((prev) => {
         if (!prev) return null;
 
-        const nextRooms = prev.dungeon.rooms.map((r, i) => {
+        const currentRooms = prev.dungeon.rooms ?? [];
+        if (currentRooms.length === 0) return prev;
+
+        const nextRooms = currentRooms.map((r, i) => {
           if (i === prev.currentRoomIndex) return { ...r, status: 'cleared' as const };
           if (i === nextIndex) return { ...r, status: 'active' as const };
           return r;
         });
 
         const nextRoomObj = nextRooms[nextIndex];
+        if (!nextRoomObj) return prev;
+
         const transitionLog: CombatLog = {
           id: generateId(),
           text: `🚶 Party enters "${nextRoomObj.name}": ${nextRoomObj.description}`,
@@ -602,7 +608,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const executeCombatRound = () => {
     if (!expedition) return;
 
-    const activeRoom = expedition.dungeon.rooms[expedition.currentRoomIndex];
+    const rooms = expedition.dungeon.rooms ?? [];
+    const activeRoom = rooms[expedition.currentRoomIndex];
+    if (!activeRoom) return;
+
     if (
       activeRoom.type !== 'Monster' &&
       activeRoom.type !== 'Elite Monster' &&
@@ -657,7 +666,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (aliveMonsters.length === 0) {
       // Room Cleared!
-      const currentRoom = expedition.dungeon.rooms[expedition.currentRoomIndex];
+      const rooms = expedition.dungeon?.rooms;
+      const currentRoom = rooms ? rooms[expedition.currentRoomIndex] : undefined;
+      if (!currentRoom) return; // safety: no room data
       const isBoss = currentRoom.type === 'Boss';
 
       // Distribute rewards
@@ -865,6 +876,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setExpedition((prev) => {
       if (!prev) return null;
+      if (!prev.dungeon?.rooms) return prev;
 
       // Update room monsters
       const updatedRooms = prev.dungeon.rooms.map((r, idx) => {
