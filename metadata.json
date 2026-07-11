@@ -1,0 +1,6 @@
+{
+  "name": "Dungeon Expedition Manager",
+  "description": "An adventurers' guild management game where you recruit heroes, purchase equipment, and send them on auto-resolving dungeon expeditions with interactive choice events and automated combat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

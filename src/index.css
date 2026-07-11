@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cinzel", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: var(--font-serif);
+  background-color: #0c0a09;
+  color: #e7e5e4; /* stone-200 */
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.mask-fade-bottom {
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+button {
+  transition: all 0.15s ease-out;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
