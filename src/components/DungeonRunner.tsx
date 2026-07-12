@@ -47,6 +47,64 @@ export const DungeonRunner: React.FC = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Derived values used by hooks — must stay above any early returns so hook
+  // count/order never changes when status becomes victory/defeat/retreat.
+  const dungeon = expedition?.dungeon;
+  const party = expedition?.party ?? [];
+  const currentRoomIndex = expedition?.currentRoomIndex ?? 0;
+  const status = expedition?.status;
+  const logs = expedition?.logs ?? [];
+  const goldEarned = expedition?.goldEarned ?? 0;
+  const lootEarned = expedition?.lootEarned ?? { equipment: [], relics: [] };
+  const speed = expedition?.speed ?? 1;
+  const activeRoom = dungeon?.rooms?.[currentRoomIndex];
+  const activeRoomType = activeRoom?.type;
+  const activeRoomChoiceMade = expedition?.activeRoomChoiceMade ?? false;
+
+  // Auto-scrolling battle logs
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs.length]);
+
+  // Automated Combat Game Loop
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    if (status !== 'room_active') return;
+    if (!activeRoomType) return;
+
+    const isCombatRoom =
+      activeRoomType === 'Monster' ||
+      activeRoomType === 'Elite Monster' ||
+      activeRoomType === 'Boss';
+
+    if (!isCombatRoom || activeRoomChoiceMade) return;
+
+    // Tick speed matches game speed multiplier
+    const msInterval = 1000 / speed;
+
+    const intervalId = setInterval(() => {
+      executeCombatRound();
+    }, msInterval);
+
+    return () => clearInterval(intervalId);
+  }, [isAutoPlaying, activeRoomType, activeRoomChoiceMade, status, speed, executeCombatRound]);
+
+  // Pause auto-play when a non-combat room needs a player choice
+  useEffect(() => {
+    if (!activeRoomType) return;
+
+    const isCombatRoom =
+      activeRoomType === 'Monster' ||
+      activeRoomType === 'Elite Monster' ||
+      activeRoomType === 'Boss';
+
+    if (!isCombatRoom && !activeRoomChoiceMade) {
+      setIsAutoPlaying(false);
+    }
+  }, [activeRoomType, activeRoomChoiceMade]);
+
   // Active room pointers
   if (!expedition) {
     return (
@@ -65,8 +123,6 @@ export const DungeonRunner: React.FC = () => {
       </div>
     );
   }
-
-  const { dungeon, party, currentRoomIndex, status, logs, goldEarned, lootEarned, speed } = expedition;
 
   // If the expedition is in a terminal state (victory/defeat/retreat), render those screens directly
   // This prevents crashes when activeRoom would be undefined (index out of bounds after last room)
@@ -130,7 +186,7 @@ export const DungeonRunner: React.FC = () => {
     );
   }
 
-  if (!dungeon.rooms?.length) {
+  if (!dungeon?.rooms?.length) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
         <AlertTriangle className="text-amber-500 mb-3 animate-bounce" size={44} />
@@ -147,51 +203,6 @@ export const DungeonRunner: React.FC = () => {
       </div>
     );
   }
-
-  const activeRoom = dungeon.rooms[currentRoomIndex];
-
-  // Auto-scrolling battle logs
-  useEffect(() => {
-    if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs.length]);
-
-  // Automated Combat Game Loop
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-    if (status !== 'room_active') return;
-
-    const isCombatRoom =
-      activeRoom.type === 'Monster' ||
-      activeRoom.type === 'Elite Monster' ||
-      activeRoom.type === 'Boss';
-
-    if (!isCombatRoom || expedition.activeRoomChoiceMade) return;
-
-    // Tick speed matches game speed multiplier
-    const msInterval = 1000 / speed;
-
-    const intervalId = setInterval(() => {
-      executeCombatRound();
-    }, msInterval);
-
-    return () => clearInterval(intervalId);
-  }, [isAutoPlaying, activeRoom.type, expedition.activeRoomChoiceMade, status, speed, executeCombatRound]);
-
-  // Handle auto-clearing non-combat rooms immediately if playing fast or if standard
-  // (We don't auto-clear treasure/ campfire/ trap/ event because we want players to interact, but we can auto-pause when they occur)
-  useEffect(() => {
-    const isCombatRoom =
-      activeRoom.type === 'Monster' ||
-      activeRoom.type === 'Elite Monster' ||
-      activeRoom.type === 'Boss';
-
-    if (!isCombatRoom && !expedition.activeRoomChoiceMade) {
-      // Pause automatic ticks to let player make choices
-      setIsAutoPlaying(false);
-    }
-  }, [activeRoom.type, expedition.activeRoomChoiceMade]);
 
   // Helper for rendering room map nodes
   const getRoomIcon = (type: DungeonRoom['type']) => {
