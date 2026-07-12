@@ -24,14 +24,40 @@ export interface SavePayload {
   expedition: ExpeditionState | null;
 }
 
+/**
+ * Requests can hang forever if a stale/other process is bound to the port we
+ * fetch from. A short timeout guarantees hydration can always proceed. All
+ * requests use same-origin RELATIVE paths (`/api/state`) so they hit whatever
+ * port Vite is actually serving (3000, 3001, 3002, …), never a hardcoded port.
+ */
+const REQUEST_TIMEOUT_MS = 8000;
+
+/** Fetch with an abort-based timeout so a hung socket can never block startup. */
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Load the persisted game state. Returns null if persistence is unavailable. */
 export async function fetchGameState(): Promise<LoadedGameState | null> {
   try {
-    const res = await fetch('/api/state', {
+    const res = await fetchWithTimeout('/api/state', {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {
       console.warn(`[persistence] load skipped (HTTP ${res.status}).`);
+      return null;
+    }
+    // Guard against a wrong process (e.g. a stale server on another port)
+    // answering with HTML instead of our JSON payload.
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      console.warn('[persistence] load skipped (non-JSON response).');
       return null;
     }
     return (await res.json()) as LoadedGameState;
@@ -44,7 +70,7 @@ export async function fetchGameState(): Promise<LoadedGameState | null> {
 /** Persist the game state. Returns the guildId on success, or null on failure. */
 export async function saveGameState(payload: SavePayload): Promise<string | null> {
   try {
-    const res = await fetch('/api/state', {
+    const res = await fetchWithTimeout('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

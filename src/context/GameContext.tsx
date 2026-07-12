@@ -171,37 +171,47 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Load persisted state once on startup (or seed the DB with the generated
   // starter guild if this is a brand-new save).
+  //
+  // NOTE: we intentionally do NOT use a per-run `cancelled` flag here. In React
+  // StrictMode the effect runs, is torn down, then runs again. Because
+  // `didInitRef` (a persistent ref) already dedupes to a single execution, a
+  // `cancelled` flag set by the first teardown would abort the only in-flight
+  // load without ever re-issuing it — leaving `hydrated` false forever (the
+  // infinite "Loading guild ledger…" screen). Instead the load runs exactly
+  // once and ALWAYS resolves `hydrated` in `finally` so the app can never hang.
   useEffect(() => {
-    if (didInitRef.current) return; // guard against StrictMode double-invoke
+    if (didInitRef.current) return; // run once (also guards StrictMode double-invoke)
     didInitRef.current = true;
 
-    let cancelled = false;
     (async () => {
-      const loaded = await fetchGameState();
-      if (cancelled) return;
+      let seedFreshGuild = false;
+      try {
+        const loaded = await fetchGameState();
 
-      if (loaded) {
-        guildIdRef.current = loaded.guildId;
-        if (loaded.guild) {
-          // Existing save: hydrate from the database.
-          setGuild(loaded.guild);
-          setExpedition(loaded.expedition);
-          setHydrated(true);
-          return;
+        if (loaded) {
+          guildIdRef.current = loaded.guildId;
+          if (loaded.guild) {
+            // Existing save: hydrate from the database.
+            setGuild(loaded.guild);
+            setExpedition(loaded.expedition);
+          } else {
+            // New/unseeded guild: keep the generated starter state and persist
+            // it once we've flipped `hydrated` on (see finally).
+            seedFreshGuild = true;
+          }
         }
-        // New/unseeded guild: keep the generated starter state and persist it.
+        // `loaded === null` => persistence unavailable: keep the in-memory
+        // starter state and carry on (fail soft).
+      } catch (err) {
+        // fetchGameState already fails soft, but guard against anything
+        // unexpected so the loading gate can never hang.
+        console.warn('[persistence] hydration failed; playing without saves.', err);
+      } finally {
+        // ALWAYS render the app, even if the API/DB is down or slow.
         setHydrated(true);
-        flushSave();
-        return;
+        if (seedFreshGuild) flushSave();
       }
-
-      // Persistence unavailable: keep playing from in-memory state.
-      setHydrated(true);
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [flushSave]);
 
   // Debounced save on any meaningful state change (gold, roster, inventory,
