@@ -31,13 +31,15 @@ import { fetchGameState, saveGameState } from '../api/client';
 interface GameContextProps {
   guild: GuildState;
   expedition: ExpeditionState | null;
-  activeScreen: 'guild' | 'expedition';
+  activeScreen: 'guild' | 'expedition' | 'account';
   activeTab: 'roster' | 'recruit' | 'armory' | 'upgrades';
   selectedHeroId: string | null;
   /** False until the initial load from the persistence API resolves. */
   hydrated: boolean;
   setGuild: React.Dispatch<React.SetStateAction<GuildState>>;
-  setActiveScreen: (screen: 'guild' | 'expedition') => void;
+  setActiveScreen: (screen: 'guild' | 'expedition' | 'account') => void;
+  /** Re-load guild state from the API (call after sign-in / sign-out). */
+  reloadPersistedState: () => Promise<void>;
   setActiveTab: (tab: 'roster' | 'recruit' | 'armory' | 'upgrades') => void;
   setSelectedHeroId: (id: string | null) => void;
   renameGuild: (newName: string) => void;
@@ -69,90 +71,84 @@ export const useGame = () => {
   return context;
 };
 
+function createStarterGuild(): GuildState {
+  const baseWarrior = generateRandomHero(1);
+  baseWarrior.heroClass = 'Warrior';
+  baseWarrior.name = 'Alden Stormweaver';
+  baseWarrior.traits = ['Brave (+15% Attack in combat)'];
+
+  const baseRogue = generateRandomHero(1);
+  baseRogue.heroClass = 'Rogue';
+  baseRogue.name = 'Lyra Shadowstep';
+  baseRogue.traits = ['Agile (+20% Speed)'];
+
+  const baseMage = generateRandomHero(1);
+  baseMage.heroClass = 'Mage';
+  baseMage.name = 'Kaelen Sunstrider';
+  baseMage.traits = ['Reckless (+30% Attack, -20% Defense)'];
+
+  const baseCleric = generateRandomHero(1);
+  baseCleric.heroClass = 'Cleric';
+  baseCleric.name = 'Sariel Lightbringer';
+  baseCleric.traits = ['Sturdy (+15% Defense in combat)'];
+
+  const starterSword: Equipment = {
+    id: generateId(),
+    name: 'Iron Broadsword',
+    type: 'weapon',
+    rarity: 'common',
+    modifiers: { attack: 5 },
+    price: 80,
+    description: 'Solid forged steel. Heavy and dependable.',
+  };
+
+  const starterVest: Equipment = {
+    id: generateId(),
+    name: 'Worn Leather Vest',
+    type: 'armor',
+    rarity: 'common',
+    modifiers: { defense: 2, speed: 1 },
+    price: 40,
+    description: 'Smells of wet dog and old sweat, but protects against light scrapes.',
+  };
+
+  return {
+    name: 'Gilded Crest Guild',
+    level: 1,
+    gold: 400,
+    roster: [baseWarrior, baseRogue, baseMage, baseCleric],
+    inventory: [starterSword, starterVest],
+    relics: [],
+    recruitStock: [generateRandomHero(1), generateRandomHero(1), generateRandomHero(2)],
+    shopStock: [generateRandomEquipment(1), generateRandomEquipment(1), generateRandomEquipment(2)],
+    upgrades: {
+      maxRoster: 6,
+      recruitQuality: 1,
+      shopQuality: 1,
+      healerStation: 1,
+    },
+  };
+}
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // --- INITAL GUILD STATE ---
-  const [guild, setGuild] = useState<GuildState>(() => {
-    // Generate starter heroes: Warrior, Rogue, Mage, Cleric
-    const baseWarrior = generateRandomHero(1);
-    baseWarrior.heroClass = 'Warrior';
-    baseWarrior.name = 'Alden Stormweaver';
-    baseWarrior.traits = ['Brave (+15% Attack in combat)'];
-
-    const baseRogue = generateRandomHero(1);
-    baseRogue.heroClass = 'Rogue';
-    baseRogue.name = 'Lyra Shadowstep';
-    baseRogue.traits = ['Agile (+20% Speed)'];
-
-    const baseMage = generateRandomHero(1);
-    baseMage.heroClass = 'Mage';
-    baseMage.name = 'Kaelen Sunstrider';
-    baseMage.traits = ['Reckless (+30% Attack, -20% Defense)'];
-
-    const baseCleric = generateRandomHero(1);
-    baseCleric.heroClass = 'Cleric';
-    baseCleric.name = 'Sariel Lightbringer';
-    baseCleric.traits = ['Sturdy (+15% Defense in combat)'];
-
-    const initialRoster = [baseWarrior, baseRogue, baseMage, baseCleric];
-
-    // Starter inventory items
-    const starterSword: Equipment = {
-      id: generateId(),
-      name: 'Iron Broadsword',
-      type: 'weapon',
-      rarity: 'common',
-      modifiers: { attack: 5 },
-      price: 80,
-      description: 'Solid forged steel. Heavy and dependable.'
-    };
-
-    const starterVest: Equipment = {
-      id: generateId(),
-      name: 'Worn Leather Vest',
-      type: 'armor',
-      rarity: 'common',
-      modifiers: { defense: 2, speed: 1 },
-      price: 40,
-      description: 'Smells of wet dog and old sweat, but protects against light scrapes.'
-    };
-
-    // Starter stock
-    const recruits = [generateRandomHero(1), generateRandomHero(1), generateRandomHero(2)];
-    const items = [generateRandomEquipment(1), generateRandomEquipment(1), generateRandomEquipment(2)];
-
-    return {
-      name: 'Gilded Crest Guild',
-      level: 1,
-      gold: 400,
-      roster: initialRoster,
-      inventory: [starterSword, starterVest],
-      relics: [],
-      recruitStock: recruits,
-      shopStock: items,
-      upgrades: {
-        maxRoster: 6,
-        recruitQuality: 1,
-        shopQuality: 1,
-        healerStation: 1
-      }
-    };
-  });
+  const [guild, setGuild] = useState<GuildState>(() => createStarterGuild());
 
   // --- EXPEDITION STATE ---
   const [expedition, setExpedition] = useState<ExpeditionState | null>(null);
 
   // --- ACTIVE SCREENS / TABS ---
-  const [activeScreen, setActiveScreen] = useState<'guild' | 'expedition'>('guild');
+  const [activeScreen, setActiveScreen] = useState<'guild' | 'expedition' | 'account'>('guild');
   const [activeTab, setActiveTab] = useState<'roster' | 'recruit' | 'armory' | 'upgrades'>('roster');
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
 
-  // --- PERSISTENCE (PostgreSQL via /api/state) ---
-  // Until Better Auth exists we operate on a single default guild resolved by
-  // the server; `guildId` is returned on load and echoed back on save.
+  // --- PERSISTENCE (PostgreSQL via /api/state, scoped to Better Auth session) ---
   const [hydrated, setHydrated] = useState(false);
   const guildIdRef = useRef<string | null>(null);
   const didInitRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Skip the next debounced save after we intentionally reload (auth change).
+  const skipNextSaveRef = useRef(false);
   // Latest state, kept in refs so the debounced saver reads current values.
   const guildRef = useRef(guild);
   const expeditionRef = useRef(expedition);
@@ -169,8 +165,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+  /** Apply a loaded payload (or clear guild id when unauthenticated). Returns whether to seed. */
+  const applyLoadedState = useCallback(
+    (loaded: Awaited<ReturnType<typeof fetchGameState>>, options?: { seedIfEmpty?: boolean }) => {
+      if (loaded) {
+        guildIdRef.current = loaded.guildId;
+        if (loaded.guild) {
+          setGuild(loaded.guild);
+          setExpedition(loaded.expedition);
+          return false;
+        }
+        return options?.seedIfEmpty !== false;
+      }
+      guildIdRef.current = null;
+      return false;
+    },
+    []
+  );
+
   // Load persisted state once on startup (or seed the DB with the generated
-  // starter guild if this is a brand-new save).
+  // starter guild if this is a brand-new save for a signed-in user).
   //
   // NOTE: we intentionally do NOT use a per-run `cancelled` flag here. In React
   // StrictMode the effect runs, is torn down, then runs again. Because
@@ -187,37 +201,43 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let seedFreshGuild = false;
       try {
         const loaded = await fetchGameState();
-
-        if (loaded) {
-          guildIdRef.current = loaded.guildId;
-          if (loaded.guild) {
-            // Existing save: hydrate from the database.
-            setGuild(loaded.guild);
-            setExpedition(loaded.expedition);
-          } else {
-            // New/unseeded guild: keep the generated starter state and persist
-            // it once we've flipped `hydrated` on (see finally).
-            seedFreshGuild = true;
-          }
-        }
-        // `loaded === null` => persistence unavailable: keep the in-memory
-        // starter state and carry on (fail soft).
+        seedFreshGuild = applyLoadedState(loaded, { seedIfEmpty: true });
       } catch (err) {
-        // fetchGameState already fails soft, but guard against anything
-        // unexpected so the loading gate can never hang.
         console.warn('[persistence] hydration failed; playing without saves.', err);
       } finally {
-        // ALWAYS render the app, even if the API/DB is down or slow.
         setHydrated(true);
         if (seedFreshGuild) flushSave();
       }
     })();
-  }, [flushSave]);
+  }, [flushSave, applyLoadedState]);
+
+  /** Re-fetch after sign-in / sign-out so the UI shows the correct guild. */
+  const reloadPersistedState = useCallback(async () => {
+    skipNextSaveRef.current = true;
+    try {
+      const loaded = await fetchGameState();
+      const shouldSeed = applyLoadedState(loaded, { seedIfEmpty: true });
+      if (!loaded) {
+        // Signed out / guest: don't leave another account's save on screen.
+        setGuild(createStarterGuild());
+        setExpedition(null);
+        setActiveScreen('guild');
+      } else if (shouldSeed) {
+        flushSave();
+      }
+    } catch (err) {
+      console.warn('[persistence] reload after auth change failed.', err);
+    }
+  }, [applyLoadedState, flushSave]);
 
   // Debounced save on any meaningful state change (gold, roster, inventory,
   // relics, expedition progress). Debouncing coalesces rapid combat ticks.
   useEffect(() => {
     if (!hydrated) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(flushSave, 800);
     return () => {
@@ -1328,6 +1348,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hydrated,
         setGuild,
         setActiveScreen,
+        reloadPersistedState,
         setActiveTab,
         setSelectedHeroId,
         renameGuild,

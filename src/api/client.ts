@@ -7,8 +7,8 @@
  * Thin fetch client for the game persistence API (served from the same origin
  * by the Vite dev server / standalone Express server — see server/api.ts).
  *
- * All calls fail soft: if the backend or database is unavailable the game keeps
- * running from in-memory state and we simply skip persistence.
+ * All calls fail soft: if the backend, auth session, or database is unavailable
+ * the game keeps running from in-memory state and we simply skip persistence.
  */
 import type { ExpeditionState, GuildState } from '../types';
 
@@ -37,7 +37,12 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+      // Send session cookies so /api/state can resolve the Better Auth user.
+      credentials: 'include',
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -49,6 +54,10 @@ export async function fetchGameState(): Promise<LoadedGameState | null> {
     const res = await fetchWithTimeout('/api/state', {
       headers: { Accept: 'application/json' },
     });
+    if (res.status === 401) {
+      // Not signed in — expected until the player creates an account.
+      return null;
+    }
     if (!res.ok) {
       console.warn(`[persistence] load skipped (HTTP ${res.status}).`);
       return null;
@@ -75,6 +84,10 @@ export async function saveGameState(payload: SavePayload): Promise<string | null
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (res.status === 401) {
+      // Guest play — skip quietly.
+      return null;
+    }
     if (!res.ok) {
       console.warn(`[persistence] save skipped (HTTP ${res.status}).`);
       return null;

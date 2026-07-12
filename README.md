@@ -8,7 +8,8 @@
    - Run `db/sql/01_create_database.sql` against the default `postgres` DB
    - Under your PGAdmin server group **Guilds of Ardessia**, use/create a server that connects to local PostgreSQL and select database `guilds_of_ardessia`
    - Run `db/sql/02_schema.sql` against `guilds_of_ardessia` (or use Drizzle below)
-3. Copy `.env.example` to `.env` and set `DATABASE_URL` with your postgres password
+3. Copy `.env.example` to `.env` and set `DATABASE_URL`, `BETTER_AUTH_SECRET`
+   (at least 32 chars — e.g. `openssl rand -base64 32`), and `BETTER_AUTH_URL`
 4. Apply migrations (optional if you already ran `02_schema.sql`):
    `npm run db:migrate`
 5. Run the app:
@@ -24,7 +25,7 @@
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm run serve` | Run the standalone Express server (serves `dist/` + API in production) |
 
-Why Drizzle: lightweight TypeScript ORM that fits this Vite/React stack and pairs cleanly with Better Auth’s drizzle adapter (auth UI/login comes later).
+Why Drizzle: lightweight TypeScript ORM that fits this Vite/React stack and pairs cleanly with Better Auth’s drizzle adapter.
 
 ## Persistence architecture
 
@@ -41,18 +42,22 @@ API sits between the React client and PostgreSQL:
 
 | File | Role |
 | --- | --- |
-| `server/repository.ts` | Data-access layer: maps the normalized schema ⇄ `GuildState`/`ExpeditionState`, plus `getOrCreateDefaultGuild`. |
-| `server/api.ts` | Express app exposing the load/save endpoints. |
+| `server/repository.ts` | Data-access layer: maps the normalized schema ⇄ `GuildState`/`ExpeditionState`, plus `getOrCreateGuildForUser`. |
+| `server/auth.ts` | Better Auth (email/password) configuration. |
+| `server/api.ts` | Express app: `/api/auth/*` + session-scoped load/save. |
 | `server/index.ts` | Standalone production server (SPA + API). |
-| `src/api/client.ts` | Browser fetch client (fails soft if the API/DB is down). |
-| `src/context/GameContext.tsx` | Loads state on startup, debounced save on change. |
+| `src/lib/auth-client.ts` | Better Auth React client. |
+| `src/components/AccountScreen.tsx` | Account dashboard (sign in/up, profile, password, delete). |
+| `src/api/client.ts` | Browser fetch client (credentials included; fails soft). |
+| `src/context/GameContext.tsx` | Loads state on startup, debounced save on change, reload on auth. |
 
 ### API
 
-- `GET /api/state` → `{ guildId, guild, expedition }` (`guild` is `null` for a
-  brand-new save, so the client seeds its generated starter guild).
-- `PUT /api/state` → body `{ guildId?, guild, expedition }` → saves a full
-  snapshot.
+- `ALL /api/auth/*` → Better Auth (sign-up, sign-in, session, profile, …).
+- `GET /api/state` → `{ guildId, guild, expedition }` for the **signed-in** user
+  (`401` if guest; `guild` is `null` for a brand-new save so the client seeds).
+- `PUT /api/state` → body `{ guild, expedition }` → saves that user's snapshot
+  (`401` if guest; client-supplied guild ids are ignored).
 - `GET /api/health` → `{ ok, database }`.
 
 It's a **save-state / load-state pair** rather than per-entity CRUD because the
@@ -72,16 +77,21 @@ Entity ids are generated as real UUIDs (`src/utils.ts` → `generateId`) so they
 map directly onto the Postgres `uuid` columns and relationships (equipped item →
 hero, expedition party → roster) round-trip cleanly.
 
-### Default guild until Better Auth exists
+### Auth (Better Auth)
 
-Login isn't wired yet, so the server operates on a single **default local user +
-guild** (`DEFAULT_USER_ID = 'local-dev-user'` in `server/repository.ts`).
-`getOrCreateDefaultGuild()` lazily creates one `user` row and one `guild` row and
-returns its id. To switch to real authentication later: resolve the guild from
-the authenticated session's user id (replace the `DEFAULT_USER_ID` lookup) — the
-rest of the data-access layer is already user-agnostic.
+Email/password auth is wired via Better Auth (`server/auth.ts`, `/api/auth/*`).
+Each signed-in user owns one guild (`getOrCreateGuildForUser`). Guests can still
+play in memory; saves require a session (see the Account screen in the sidebar).
+
+Add to `.env` (see `.env.example`):
+
+```env
+BETTER_AUTH_SECRET=<openssl rand -base64 32>
+BETTER_AUTH_URL=http://localhost:3000
+```
+
+Web3 wallet linking will use the existing `wallet_address` table later.
 
 > **Live testing needs your real DB password.** Set `DATABASE_URL` in `.env` with
 > the PostgreSQL password from your PGAdmin install. Typecheck/build do not need
-> a DB connection, but the API returns `500 password authentication failed` until
-> the password is correct.
+> a DB connection.

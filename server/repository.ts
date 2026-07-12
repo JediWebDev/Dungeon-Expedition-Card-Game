@@ -11,14 +11,11 @@
  * `generateId`), so relationships (equipped items -> hero, expedition party -> roster)
  * round-trip faithfully.
  *
- * NOTE ON AUTH: Better Auth is not wired yet, so we operate on a single default
- * local user + guild (see `getOrCreateDefaultGuild`). To move to real auth later,
- * resolve the guild from the authenticated session's user id instead of the
- * DEFAULT_USER_ID constant; the rest of this layer is user-agnostic.
+ * Auth: each Better Auth `user.id` owns exactly one guild (`guild.user_id` unique).
+ * Call `getOrCreateGuildForUser(session.user.id)` from authenticated API routes.
  */
 import { and, desc, eq } from 'drizzle-orm';
 import { getDb } from '../db/index';
-import { user } from '../db/schema/auth';
 import { equipmentItem, expedition, guild, guildRelic, hero } from '../db/schema/game';
 import { RELICS_POOL } from '../src/data';
 import type {
@@ -29,36 +26,28 @@ import type {
   Relic,
 } from '../src/types';
 
-/**
- * Fixed identity used until Better Auth is integrated. Swap this out for the
- * authenticated user id to give each real user their own guild save.
- */
-export const DEFAULT_USER_ID = 'local-dev-user';
-const DEFAULT_USER_EMAIL = 'local@dev.local';
 const DEFAULT_GUILD_NAME = 'New Guild';
 
 type EquipSlot = 'weapon' | 'armor' | 'accessory';
 
-/** Ensure the default local user + guild exist and return the guild id. */
-export async function getOrCreateDefaultGuild(): Promise<string> {
+/**
+ * Ensure the authenticated user has a guild row and return its id.
+ * The `user` row must already exist (created by Better Auth on sign-up).
+ */
+export async function getOrCreateGuildForUser(userId: string): Promise<string> {
   const db = getDb();
-
-  await db
-    .insert(user)
-    .values({ id: DEFAULT_USER_ID, name: 'Local Player', email: DEFAULT_USER_EMAIL })
-    .onConflictDoNothing({ target: user.id });
 
   const existing = await db
     .select({ id: guild.id })
     .from(guild)
-    .where(eq(guild.userId, DEFAULT_USER_ID))
+    .where(eq(guild.userId, userId))
     .limit(1);
 
   if (existing.length > 0) return existing[0].id;
 
   const inserted = await db
     .insert(guild)
-    .values({ userId: DEFAULT_USER_ID, name: DEFAULT_GUILD_NAME })
+    .values({ userId, name: DEFAULT_GUILD_NAME })
     .returning({ id: guild.id });
 
   return inserted[0].id;
