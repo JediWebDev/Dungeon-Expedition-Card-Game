@@ -16,9 +16,19 @@ import {
   RELICS_POOL
 } from './data';
 
-// Helper to generate a unique random ID
+// Helper to generate a unique random ID.
+// Returns a real UUID so entity ids map directly onto the Postgres `uuid`
+// columns and relationships (equipped items, expedition party) persist cleanly.
 export function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for older/non-secure environments (RFC 4122 v4 shape).
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 // Calculate fully-modified stats of a hero including equipment, traits, and passive relics

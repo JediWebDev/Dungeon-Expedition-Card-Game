@@ -10,9 +10,24 @@ import { DungeonRunner } from './components/DungeonRunner';
 import { Shield, Compass, Edit2, Check } from 'lucide-react';
 
 function DashboardContent() {
-  const { guild, expedition, activeScreen, setActiveScreen, renameGuild } = useGame();
+  const { guild, expedition, activeScreen, setActiveScreen, renameGuild, hydrated } = useGame();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(guild.name);
+
+  // Wait for the persisted save to load before rendering the dashboard so we
+  // don't briefly show freshly-generated state that then gets replaced.
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-300 flex flex-col items-center justify-center gap-4 font-serif">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center text-stone-950 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse">
+          <Shield size={20} fill="currentColor" className="stroke-none" />
+        </div>
+        <p className="text-xs uppercase tracking-[0.2em] text-stone-500 font-sans font-bold">
+          Loading guild ledger…
+        </p>
+      </div>
+    );
+  }
 
   // Edit Guild Name handler
   const handleSaveName = () => {

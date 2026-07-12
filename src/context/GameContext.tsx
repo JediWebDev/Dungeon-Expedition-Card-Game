@@ -26,6 +26,7 @@ import {
   getModifiedStats
 } from '../utils';
 import { DUNGEON_TEMPLATES, RELICS_POOL } from '../data';
+import { fetchGameState, saveGameState } from '../api/client';
 
 interface GameContextProps {
   guild: GuildState;
@@ -33,6 +34,8 @@ interface GameContextProps {
   activeScreen: 'guild' | 'expedition';
   activeTab: 'roster' | 'recruit' | 'armory' | 'upgrades';
   selectedHeroId: string | null;
+  /** False until the initial load from the persistence API resolves. */
+  hydrated: boolean;
   setGuild: React.Dispatch<React.SetStateAction<GuildState>>;
   setActiveScreen: (screen: 'guild' | 'expedition') => void;
   setActiveTab: (tab: 'roster' | 'recruit' | 'armory' | 'upgrades') => void;
@@ -142,6 +145,83 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeScreen, setActiveScreen] = useState<'guild' | 'expedition'>('guild');
   const [activeTab, setActiveTab] = useState<'roster' | 'recruit' | 'armory' | 'upgrades'>('roster');
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
+
+  // --- PERSISTENCE (PostgreSQL via /api/state) ---
+  // Until Better Auth exists we operate on a single default guild resolved by
+  // the server; `guildId` is returned on load and echoed back on save.
+  const [hydrated, setHydrated] = useState(false);
+  const guildIdRef = useRef<string | null>(null);
+  const didInitRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest state, kept in refs so the debounced saver reads current values.
+  const guildRef = useRef(guild);
+  const expeditionRef = useRef(expedition);
+  guildRef.current = guild;
+  expeditionRef.current = expedition;
+
+  const flushSave = useCallback(() => {
+    void saveGameState({
+      guildId: guildIdRef.current,
+      guild: guildRef.current,
+      expedition: expeditionRef.current
+    }).then((savedGuildId) => {
+      if (savedGuildId) guildIdRef.current = savedGuildId;
+    });
+  }, []);
+
+  // Load persisted state once on startup (or seed the DB with the generated
+  // starter guild if this is a brand-new save).
+  useEffect(() => {
+    if (didInitRef.current) return; // guard against StrictMode double-invoke
+    didInitRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      const loaded = await fetchGameState();
+      if (cancelled) return;
+
+      if (loaded) {
+        guildIdRef.current = loaded.guildId;
+        if (loaded.guild) {
+          // Existing save: hydrate from the database.
+          setGuild(loaded.guild);
+          setExpedition(loaded.expedition);
+          setHydrated(true);
+          return;
+        }
+        // New/unseeded guild: keep the generated starter state and persist it.
+        setHydrated(true);
+        flushSave();
+        return;
+      }
+
+      // Persistence unavailable: keep playing from in-memory state.
+      setHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [flushSave]);
+
+  // Debounced save on any meaningful state change (gold, roster, inventory,
+  // relics, expedition progress). Debouncing coalesces rapid combat ticks.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(flushSave, 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [guild, expedition, hydrated, flushSave]);
+
+  // Best-effort flush when the tab is hidden or closed.
+  useEffect(() => {
+    if (!hydrated) return;
+    const handler = () => flushSave();
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hydrated, flushSave]);
 
   // Auto-refills recruiter and marketplace after expeditions or on custom triggers
   const refreshStocks = useCallback((guildLevel: number) => {
@@ -1235,6 +1315,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeScreen,
         activeTab,
         selectedHeroId,
+        hydrated,
         setGuild,
         setActiveScreen,
         setActiveTab,
