@@ -66,7 +66,71 @@ export const DungeonRunner: React.FC = () => {
     );
   }
 
-  if (!expedition.dungeon?.rooms?.length) {
+  const { dungeon, party, currentRoomIndex, status, logs, goldEarned, lootEarned, speed } = expedition;
+
+  // If the expedition is in a terminal state (victory/defeat/retreat), render those screens directly
+  // This prevents crashes when activeRoom would be undefined (index out of bounds after last room)
+  if (status === 'victory') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+          <span className="text-5xl block mb-3">🏆</span>
+          <h4 className="text-lg font-bold text-amber-400 uppercase tracking-wide">Expedition Victorious!</h4>
+          <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
+            Your team successfully defeated the dungeon boss and mapped out the sectors! They returned safely with relics and full loot payouts.
+          </p>
+          <button
+            onClick={() => setActiveScreen('guild')}
+            className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer shadow-[0_0_15px_rgba(217,119,6,0.15)]"
+          >
+            Return to Guild HQ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'retreat') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+          <span className="text-5xl block mb-3">🏳️</span>
+          <h4 className="text-lg font-bold text-stone-300 uppercase tracking-wide">Expedition Retreated</h4>
+          <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
+            The guild master authorized an emergency caravan pullout. Survivors returned fainted or exhausted, but they carried back half of the plundered gold!
+          </p>
+          <button
+            onClick={() => setActiveScreen('guild')}
+            className="mt-6 bg-stone-900 border border-stone-800 hover:border-stone-600 text-stone-300 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
+          >
+            Return to Guild HQ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'defeat') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+          <span className="text-5xl block mb-3">💀</span>
+          <h4 className="text-lg font-bold text-red-500 uppercase tracking-wide">Party Wiped Out</h4>
+          <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
+            Tragedy strikes. The dungeon monsters completely overwhelmed your frontline. A recovery squad pulled them back unconscious. Spend gold in sanctuary to heal them.
+          </p>
+          <button
+            onClick={() => setActiveScreen('guild')}
+            className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
+          >
+            Return to Guild HQ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dungeon.rooms?.length) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
         <AlertTriangle className="text-amber-500 mb-3 animate-bounce" size={44} />
@@ -84,8 +148,7 @@ export const DungeonRunner: React.FC = () => {
     );
   }
 
-  const { dungeon, party, currentRoomIndex, status, logs, goldEarned, lootEarned, speed } = expedition;
-  const activeRoom = dungeon.rooms![currentRoomIndex];
+  const activeRoom = dungeon.rooms[currentRoomIndex];
 
   // Auto-scrolling battle logs
   useEffect(() => {
@@ -172,6 +235,25 @@ export const DungeonRunner: React.FC = () => {
     }
   };
 
+  // Check if expedition is active
+  if (status === 'room_active' && !activeRoom) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
+        <AlertTriangle className="text-amber-500 mb-3 animate-bounce" size={44} />
+        <h3 className="text-lg font-bold text-stone-100 uppercase tracking-wide">Room Data Unavailable</h3>
+        <p className="text-xs text-stone-400 mt-1 max-w-sm text-center font-sans">
+          The current room data is missing. Please return to the guild and restart the expedition.
+        </p>
+        <button
+          onClick={() => setActiveScreen('guild')}
+          className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
+        >
+          Return to Guild Hall
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-stone-950 animate-fade-in">
       {/* 1. Dungeon Top Navigation & Map Nodes */}
@@ -250,8 +332,7 @@ export const DungeonRunner: React.FC = () => {
                 retreatExpedition();
               }
             }}
-            disabled={status === 'victory' || status === 'defeat' || status === 'retreat'}
-            className="bg-stone-900 hover:bg-red-950/30 border border-stone-850 hover:border-red-900/30 text-stone-300 hover:text-red-400 text-xs py-1.5 px-3.5 rounded-sm uppercase tracking-wider font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            className="bg-stone-900 hover:bg-red-950/30 border border-stone-850 hover:border-red-900/30 text-stone-300 hover:text-red-400 text-xs py-1.5 px-3.5 rounded-sm uppercase tracking-wider font-bold transition-all cursor-pointer"
           >
             Retreat
           </button>
@@ -337,70 +418,21 @@ export const DungeonRunner: React.FC = () => {
             {/* Header info */}
             <div className="mb-4">
               <span className="text-[9px] uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-1 rounded-sm font-bold border border-amber-500/20">
-                {activeRoom.type} Node
+                {activeRoom!.type} Node
               </span>
-              <h3 className="text-lg font-bold text-stone-100 mt-2.5 uppercase tracking-wide">{activeRoom.name}</h3>
-              <p className="text-xs text-stone-400 mt-1 font-serif italic">{activeRoom.description}</p>
+              <h3 className="text-lg font-bold text-stone-100 mt-2.5 uppercase tracking-wide">{activeRoom!.name}</h3>
+              <p className="text-xs text-stone-400 mt-1 font-serif italic">{activeRoom!.description}</p>
             </div>
 
             {/* SCENARIO CHANNELS */}
-
-            {/* --- STATE: EXITS / COMBAT OUTCOME (VICTORY / DEFEAT / RETREAT) --- */}
-            {status === 'victory' && (
-              <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
-                <span className="text-5xl block mb-3">🏆</span>
-                <h4 className="text-lg font-bold text-amber-400 uppercase tracking-wide">Expedition Victorious!</h4>
-                <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
-                  Your team successfully defeated the dungeon boss and mapped out the sectors! They returned safely with relics and full loot payouts.
-                </p>
-                <button
-                  onClick={() => setActiveScreen('guild')}
-                  className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer shadow-[0_0_15px_rgba(217,119,6,0.15)]"
-                >
-                  Return to Guild HQ
-                </button>
-              </div>
-            )}
-
-            {status === 'retreat' && (
-              <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
-                <span className="text-5xl block mb-3">🏳️</span>
-                <h4 className="text-lg font-bold text-stone-300 uppercase tracking-wide">Expedition Retreated</h4>
-                <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
-                  The guild master authorized an emergency caravan pullout. Survivors returned fainted or exhausted, but they carried back half of the plundered gold!
-                </p>
-                <button
-                  onClick={() => setActiveScreen('guild')}
-                  className="mt-6 bg-stone-900 border border-stone-800 hover:border-stone-600 text-stone-300 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                >
-                  Return to Guild HQ
-                </button>
-              </div>
-            )}
-
-            {status === 'defeat' && (
-              <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
-                <span className="text-5xl block mb-3">💀</span>
-                <h4 className="text-lg font-bold text-red-500 uppercase tracking-wide">Party Wiped Out</h4>
-                <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
-                  Tragedy strikes. The dungeon monsters completely overwhelmed your frontline. A recovery squad pulled them back unconscious. Spend gold in sanctuary to heal them.
-                </p>
-                <button
-                  onClick={() => setActiveScreen('guild')}
-                  className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                >
-                  Return to Guild HQ
-                </button>
-              </div>
-            )}
 
             {/* --- STATE: EXPEDITION RUNNING & ACTIVE ROOM --- */}
             {status === 'room_active' && (
               <div className="flex-1 flex flex-col justify-center min-h-0">
                 {/* 1. ROOM TYPE: COMBAT (MONSTER / ELITE / BOSS) */}
-                {(activeRoom.type === 'Monster' ||
-                  activeRoom.type === 'Elite Monster' ||
-                  activeRoom.type === 'Boss') && (
+                {(activeRoom!.type === 'Monster' ||
+                  activeRoom!.type === 'Elite Monster' ||
+                  activeRoom!.type === 'Boss') && (
                   <div className="flex-1 flex flex-col justify-between">
                     {/* Battle Field visualization */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-4 flex-1">
@@ -445,8 +477,8 @@ export const DungeonRunner: React.FC = () => {
 
                       {/* Right: Monsters party block */}
                       <div className="flex -space-x-3 sm:space-x-0 sm:flex-col gap-1.5 sm:gap-2">
-                        {activeRoom.monsterGroup && activeRoom.monsterGroup.length > 0 ? (
-                          activeRoom.monsterGroup.map((monster, idx) => {
+                        {activeRoom!.monsterGroup && activeRoom!.monsterGroup.length > 0 ? (
+                          activeRoom!.monsterGroup.map((monster, idx) => {
                             const isMDead = monster.hp <= 0;
                             const mHpPct = isMDead ? 0 : (monster.hp / monster.maxHp) * 100;
                             return (
@@ -495,7 +527,7 @@ export const DungeonRunner: React.FC = () => {
                 )}
 
                 {/* 2. ROOM TYPE: TREASURE */}
-                {activeRoom.type === 'Treasure' && (
+                {activeRoom!.type === 'Treasure' && (
                   <div className="my-auto py-6 text-center max-w-sm mx-auto flex flex-col items-center">
                     <span className="text-6xl block animate-bounce mb-4">🎁</span>
                     <h4 className="text-base font-bold text-stone-200 uppercase tracking-wide">Plundered Guild Vault Chest</h4>
@@ -522,7 +554,7 @@ export const DungeonRunner: React.FC = () => {
                 )}
 
                 {/* 3. ROOM TYPE: CAMPFIRE */}
-                {activeRoom.type === 'Campfire' && (
+                {activeRoom!.type === 'Campfire' && (
                   <div className="my-auto py-6 text-center max-w-md mx-auto">
                     <span className="text-5xl block mb-3 animate-pulse">🔥</span>
                     <h4 className="text-base font-bold text-orange-400 uppercase tracking-wide">The Sanctuary Campfire</h4>
@@ -571,7 +603,7 @@ export const DungeonRunner: React.FC = () => {
                 )}
 
                 {/* 4. ROOM TYPE: MERCHANT */}
-                {activeRoom.type === 'Merchant' && (
+                {activeRoom!.type === 'Merchant' && (
                   <div className="my-auto py-4 flex flex-col justify-between">
                     <p className="text-xs text-stone-400 text-center max-w-sm mx-auto leading-relaxed font-serif italic mb-2">
                       &ldquo;Greetings guild managers! Stock up on rare magic trinkets directly using your guild bank gold gold.&rdquo;
@@ -636,7 +668,7 @@ export const DungeonRunner: React.FC = () => {
                 )}
 
                 {/* 5. ROOM TYPE: TRAP */}
-                {activeRoom.type === 'Trap' && (
+                {activeRoom!.type === 'Trap' && (
                   <div className="my-auto py-4 text-center max-w-xl mx-auto animate-fade-in">
                     <span className="text-5xl block mb-3">🕸️</span>
                     <h4 className="text-base font-bold text-stone-200 uppercase tracking-wide">Hidden Spikes & Dart Trap</h4>
@@ -705,21 +737,21 @@ export const DungeonRunner: React.FC = () => {
                 )}
 
                 {/* 6. ROOM TYPE: MYSTERY EVENT */}
-                {activeRoom.type === 'Mystery Event' && (
+                {activeRoom!.type === 'Mystery Event' && (
                   <div className="my-auto py-4 text-center max-w-xl mx-auto animate-fade-in">
-                    {activeRoom.mysteryEvent ? (
+                    {activeRoom!.mysteryEvent ? (
                       <div>
                         <span className="text-5xl block mb-3 animate-pulse">📜</span>
                         <h4 className="text-base font-bold text-purple-400 uppercase tracking-wide">
-                          {activeRoom.mysteryEvent.title}
+                          {activeRoom!.mysteryEvent.title}
                         </h4>
                         <p className="text-xs text-stone-300 italic mt-2 leading-relaxed bg-stone-950/60 p-3 rounded-sm border border-stone-850/60 font-serif">
-                          &ldquo;{activeRoom.mysteryEvent.description}&rdquo;
+                          &ldquo;{activeRoom!.mysteryEvent.description}&rdquo;
                         </p>
 
                         {!expedition.activeRoomChoiceMade ? (
                           <div className="space-y-2 mt-6 font-sans">
-                            {activeRoom.mysteryEvent.choices.map((choice, i) => {
+                            {activeRoom!.mysteryEvent.choices.map((choice, i) => {
                               // Verify if any gold or level requirement exists
                               const meetsGoldReq = choice.requirements?.gold
                                 ? guild.gold >= choice.requirements.gold
