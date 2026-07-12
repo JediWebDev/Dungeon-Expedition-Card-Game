@@ -1,0 +1,1 @@
+ALTER TABLE "guild" ALTER COLUMN "healer_station" SET DEFAULT 1;

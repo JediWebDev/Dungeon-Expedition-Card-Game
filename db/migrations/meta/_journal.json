@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783877932544,
+      "tag": "0000_cheerful_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783877982552,
+      "tag": "0001_add_fk_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783878010194,
+      "tag": "0002_noop_check",
+      "breakpoints": true
+    }
+  ]
+}
