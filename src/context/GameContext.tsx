@@ -179,6 +179,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [applySnapshot]);
 
+  // Poll while heroes are resting in Sanctuary so free auto-revives appear without a manual refresh.
+  useEffect(() => {
+    if (!hydrated) return;
+    const hasFallen = guild.roster.some((h) => h.status === 'Dead');
+    if (!hasFallen) return;
+    const id = window.setInterval(() => {
+      void reloadPersistedState();
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [guild.roster, hydrated, reloadPersistedState]);
+
   const value: GameContextProps = {
     guild,
     expedition,

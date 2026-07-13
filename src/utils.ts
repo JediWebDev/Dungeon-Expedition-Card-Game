@@ -145,6 +145,7 @@ export function generateRandomHero(level: number = 1): Hero {
     luck: baseStats.luck,
     morale: 100,
     status: 'Idle',
+    diedAt: null,
     equipment: {
       weapon: null,
       armor: null,

@@ -81,6 +81,7 @@ function toHero(row: typeof hero.$inferSelect, equipped: Partial<Record<EquipSlo
     luck: row.luck,
     morale: row.morale,
     status: row.status,
+    diedAt: row.diedAt ? row.diedAt.getTime() : null,
     equipment: {
       weapon: equipped.weapon ?? null,
       armor: equipped.armor ?? null,
@@ -220,6 +221,7 @@ export async function saveGameState(
         luck: h.luck,
         morale: h.morale,
         status: h.status,
+        diedAt: h.diedAt ? new Date(h.diedAt) : null,
         portraitSeed: h.portraitSeed,
         flavorText: h.flavorText,
         traits: h.traits,

@@ -3,14 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Hero, Equipment } from '../types';
 import { Portrait } from './Portrait';
 import { getModifiedStats } from '../utils';
+import {
+  formatDurationMs,
+  getAutoReviveRemainingMs,
+  getHealCost,
+  getInstantReviveCost,
+} from '../sanctuary';
 import { Shield, Swords, Zap, Heart, Compass, Trash2 } from 'lucide-react';
 
 interface HeroCardProps {
   hero: Hero;
+  /** Sanctuary Altar rank — drives heal/revive gold and auto-revive timer. */
+  healerStation?: number;
   isSelected?: boolean;
   activeRelics?: any[];
   guildInventory?: Equipment[];
@@ -25,6 +33,7 @@ interface HeroCardProps {
 
 export const HeroCard: React.FC<HeroCardProps> = ({
   hero,
+  healerStation = 1,
   isSelected = false,
   activeRelics = [],
   guildInventory = [],
@@ -37,6 +46,13 @@ export const HeroCard: React.FC<HeroCardProps> = ({
   isExpeditionMode = false
 }) => {
   const modStats = getModifiedStats(hero, activeRelics);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (hero.status !== 'Dead') return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [hero.status, hero.id]);
 
   // Helper for item rarity text color
   const getRarityClass = (rarity: Equipment['rarity']) => {
@@ -69,9 +85,9 @@ export const HeroCard: React.FC<HeroCardProps> = ({
     return guildInventory.filter((item) => item.type === type);
   };
 
-  // Cost to heal
-  const healCost = Math.max(15, Math.round((hero.maxHp - hero.hp) * 0.35 + (100 - hero.morale) * 0.2));
-  const reviveCost = Math.round(hero.level * 80 + 50);
+  const healCost = getHealCost(hero, healerStation);
+  const reviveCost = getInstantReviveCost(hero, healerStation);
+  const autoRemaining = getAutoReviveRemainingMs(hero, healerStation, now);
 
   return (
     <div
@@ -385,15 +401,24 @@ export const HeroCard: React.FC<HeroCardProps> = ({
         {!isExpeditionMode && hero.status !== 'Expedition' && (
           <div className="mt-3 pt-3 border-t border-stone-850 flex items-center justify-between gap-2">
             {hero.status === 'Dead' ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRevive?.();
-                }}
-                className="flex-1 bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-900/30 hover:border-red-600 font-bold py-1.5 px-3 rounded-sm text-xs uppercase tracking-widest transition shadow-md cursor-pointer"
-              >
-                Revive ({reviveCost}g)
-              </button>
+              <div className="flex-1 flex flex-col gap-1.5">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRevive?.();
+                  }}
+                  className="w-full bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-900/30 hover:border-red-600 font-bold py-1.5 px-3 rounded-sm text-xs uppercase tracking-widest transition shadow-md cursor-pointer"
+                >
+                  Instant Revive ({reviveCost}g)
+                </button>
+                <p className="text-[10px] text-stone-500 font-sans font-semibold uppercase tracking-wider text-center">
+                  {autoRemaining == null
+                    ? 'Sanctuary resting…'
+                    : autoRemaining <= 0
+                      ? 'Ready — refresh to wake'
+                      : `Free revive in ${formatDurationMs(autoRemaining)}`}
+                </p>
+              </div>
             ) : hero.hp < hero.maxHp || hero.morale < 100 ? (
               <button
                 onClick={(e) => {

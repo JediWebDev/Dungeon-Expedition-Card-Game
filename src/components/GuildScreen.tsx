@@ -142,6 +142,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 <HeroCard
                   key={hero.id}
                   hero={hero}
+                  healerStation={guild.upgrades.healerStation}
                   isSelected={selectedHeroId === hero.id}
                   guildInventory={guild.inventory}
                   onSelect={() => setSelectedHeroId(hero.id)}
@@ -573,7 +574,8 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                   ⛪ Sanctuary Altar & Baths
                 </h3>
                 <p className="text-xs text-stone-400 mt-2 leading-relaxed font-sans">
-                  Set up warm springs and blessed alters inside your guild. Greatly reduces gold cost needed to revive/heal tired heroes.
+                  Set up warm springs and blessed altars inside your guild. Higher ranks reduce
+                  instant heal/revive gold and shorten free Sanctuary rest timers for fallen heroes.
                 </p>
                 <div className="mt-4 flex items-center gap-3 text-sm font-sans font-semibold">
                   <span className="text-stone-400">Altar Blessed Rank:</span>

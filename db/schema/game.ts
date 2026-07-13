@@ -66,6 +66,8 @@ export const hero = pgTable(
     luck: integer('luck').notNull(),
     morale: integer('morale').notNull().default(100),
     status: text('status').notNull().$type<'Idle' | 'Expedition' | 'Dead'>().default('Idle'),
+    /** When the hero last fell (for Sanctuary auto-revive). */
+    diedAt: timestamp('died_at', { withTimezone: true }),
     portraitSeed: text('portrait_seed').notNull(),
     flavorText: text('flavor_text').notNull(),
     traits: jsonb('traits').$type<string[]>().notNull().default([]),

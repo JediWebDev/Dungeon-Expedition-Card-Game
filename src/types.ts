@@ -36,6 +36,8 @@ export interface Hero {
   luck: number;
   morale: number; // 0 to 100
   status: 'Idle' | 'Expedition' | 'Dead';
+  /** Epoch ms when the hero fell; used by Sanctuary auto-revive. Null when not dead. */
+  diedAt: number | null;
   equipment: {
     weapon: Equipment | null;
     armor: Equipment | null;

@@ -31,6 +31,11 @@ import {
   getModifiedStats
 } from '../../src/utils';
 import { DUNGEON_TEMPLATES, RELICS_POOL } from '../../src/data';
+import {
+  applyDueAutoRevives,
+  getHealCost,
+  getInstantReviveCost,
+} from '../../src/sanctuary';
 
 export interface GameSnapshot {
   guild: GuildState;
@@ -50,6 +55,34 @@ type ActionOf<T extends GameAction['type']> = Extract<GameAction, { type: T }>;
 const TERMINAL_EXPEDITION_STATUSES: ExpeditionState['status'][] = ['victory', 'defeat', 'retreat'];
 const COMBAT_ROOM_TYPES: DungeonRoom['type'][] = ['Monster', 'Elite Monster', 'Boss'];
 const CHOICE_ROOM_TYPES: DungeonRoom['type'][] = ['Campfire', 'Trap', 'Mystery Event'];
+
+/** Stamp a hero as fallen for Sanctuary auto-revive tracking. */
+function markHeroDead(hero: Hero, extras: Partial<Hero> = {}, now = Date.now()): Hero {
+  return {
+    ...hero,
+    ...extras,
+    status: 'Dead',
+    hp: 0,
+    diedAt: extras.diedAt ?? now,
+  };
+}
+
+/**
+ * Apply any due free Sanctuary auto-revives. Call before serving state / applying actions.
+ * Returns the same snapshot reference when nothing changed.
+ */
+export function resolveSanctuary(snapshot: GameSnapshot, now = Date.now()): GameSnapshot {
+  const { roster, revivedIds } = applyDueAutoRevives(
+    snapshot.guild.roster,
+    snapshot.guild.upgrades.healerStation,
+    now
+  );
+  if (revivedIds.length === 0) return snapshot;
+  return {
+    ...snapshot,
+    guild: { ...snapshot.guild, roster },
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Starter guild + stock refresh
@@ -138,7 +171,9 @@ export function refreshStocks(guild: GuildState): GuildState {
 // ---------------------------------------------------------------------------
 
 export function applyGameAction(state: GameSnapshot, action: GameAction): GameSnapshot {
-  const { guild, expedition } = state;
+  // Resolve free Sanctuary revives before any player intent so costs/status are current.
+  const resolved = resolveSanctuary(state);
+  const { guild, expedition } = resolved;
 
   switch (action.type) {
     case 'renameGuild':
@@ -359,12 +394,14 @@ function handleHealHero(guild: GuildState, expedition: ExpeditionState | null, a
   const hero = guild.roster.find((h) => h.id === action.heroId);
   if (!hero) throw new GameActionError('Hero not found.', 404);
   if (hero.status === 'Expedition') throw new GameActionError('Cannot heal a hero currently on an expedition.');
+  if (hero.status === 'Dead') throw new GameActionError('Fallen heroes must be revived, not healed.');
 
-  const dmg = hero.maxHp - hero.hp;
-  const cost = Math.max(15, Math.round(dmg * 0.35 + (100 - hero.morale) * 0.2));
+  const cost = getHealCost(hero, guild.upgrades.healerStation);
   if (guild.gold < cost) throw new GameActionError('Not enough gold to heal this hero.');
 
-  const roster = guild.roster.map((h) => (h.id === action.heroId ? { ...h, hp: h.maxHp, morale: 100 } : h));
+  const roster = guild.roster.map((h) =>
+    h.id === action.heroId ? { ...h, hp: h.maxHp, morale: 100, diedAt: null } : h
+  );
 
   return { guild: { ...guild, gold: guild.gold - cost, roster }, expedition };
 }
@@ -374,11 +411,13 @@ function handleReviveHero(guild: GuildState, expedition: ExpeditionState | null,
   if (!hero) throw new GameActionError('Hero not found.', 404);
   if (hero.status !== 'Dead') throw new GameActionError('This hero is not dead.');
 
-  const reviveCost = Math.round(hero.level * 80 + 50);
+  const reviveCost = getInstantReviveCost(hero, guild.upgrades.healerStation);
   if (guild.gold < reviveCost) throw new GameActionError('Not enough gold to revive this hero.');
 
   const roster = guild.roster.map((h) =>
-    h.id === action.heroId ? { ...h, status: 'Idle' as const, hp: Math.round(h.maxHp * 0.4), morale: 40 } : h
+    h.id === action.heroId
+      ? { ...h, status: 'Idle' as const, hp: Math.round(h.maxHp * 0.4), morale: 40, diedAt: null }
+      : h
   );
 
   return { guild: { ...guild, gold: guild.gold - reviveCost, roster }, expedition };
@@ -467,13 +506,17 @@ function handleRetreatExpedition(guild: GuildState, expedition: ExpeditionState 
     throw new GameActionError('This expedition has already ended.');
   }
 
+  const now = Date.now();
   const survivors = expedition.party.map((h) => {
     const isDead = h.hp <= 0;
+    if (isDead) {
+      return markHeroDead(h, { morale: Math.max(10, Math.round(h.morale * 0.5)) }, now);
+    }
     return {
       ...h,
-      status: isDead ? ('Dead' as const) : ('Idle' as const),
-      hp: isDead ? 0 : h.hp,
-      morale: Math.max(10, Math.round(h.morale * 0.5))
+      status: 'Idle' as const,
+      morale: Math.max(10, Math.round(h.morale * 0.5)),
+      diedAt: null,
     };
   });
 
@@ -552,8 +595,9 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
 }
 
 function settleExpeditionVictory(guild: GuildState, expedition: ExpeditionState, nextIndex: number): GameSnapshot {
+  const now = Date.now();
   const finishedParty = expedition.party.map((h) => {
-    if (h.hp <= 0) return { ...h, status: 'Dead' as const, hp: 0 };
+    if (h.hp <= 0) return markHeroDead(h, {}, now);
 
     const guildExpBonus = guild.relics.find((r) => r.modifierType === 'exp_bonus')?.modifierValue || 0;
     const totalExpEarned = Math.round(75 * expedition.dungeon.dangerRating * (1 + guildExpBonus));
@@ -573,7 +617,8 @@ function settleExpeditionVictory(guild: GuildState, expedition: ExpeditionState,
       level: nextLevel,
       experience: nextExp,
       expNeeded: nextExpNeeded,
-      morale: Math.min(100, h.morale + 15)
+      morale: Math.min(100, h.morale + 15),
+      diedAt: null,
     };
   });
 
@@ -681,7 +726,8 @@ function handleExecuteCombatRound(guild: GuildState, expedition: ExpeditionState
 }
 
 function settleExpeditionDefeat(guild: GuildState, expedition: ExpeditionState): GameSnapshot {
-  const faintedHeroes = expedition.party.map((h) => ({ ...h, status: 'Dead' as const, hp: 0, morale: 20 }));
+  const now = Date.now();
+  const faintedHeroes = expedition.party.map((h) => markHeroDead(h, { morale: 20 }, now));
   const roster = guild.roster.map((h) => faintedHeroes.find((f) => f.id === h.id) ?? h);
   const settledGuild = refreshStocks({ ...guild, roster });
 
@@ -1214,9 +1260,10 @@ function handleBuyMerchantItem(
 
 /** Marks every party member as `Dead` in the guild roster after a full wipe. */
 function markPartyDead(guild: GuildState, party: Hero[]): GuildState {
+  const now = Date.now();
   const roster = guild.roster.map((h) => {
     const finished = party.find((f) => f.id === h.id);
-    return finished ? { ...finished, status: 'Dead' as const, hp: 0 } : h;
+    return finished ? markHeroDead(finished, {}, now) : h;
   });
   return { ...guild, roster };
 }

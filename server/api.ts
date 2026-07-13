@@ -23,8 +23,10 @@ import {
   applyGameAction,
   createStarterGuild,
   GameActionError,
+  resolveSanctuary,
   type GameSnapshot,
 } from './game/engine';
+import { startSanctuaryTicker } from './sanctuaryTick';
 
 function dbUnavailable(res: Response) {
   res.status(503).json({
@@ -46,15 +48,23 @@ async function getSessionUserId(req: Request): Promise<string | null> {
   }
 }
 
-/** Load guild+expedition, seeding a starter guild on first play. */
+/** Load guild+expedition, seeding a starter guild on first play. Resolves Sanctuary auto-revives. */
 async function loadOrSeedSnapshot(guildId: string): Promise<GameSnapshot> {
   const loaded = await loadGameState(guildId);
-  if (loaded.guild) {
-    return { guild: loaded.guild, expedition: loaded.expedition };
+  if (!loaded.guild) {
+    const starter = createStarterGuild();
+    await saveGameState(guildId, { guild: starter, expedition: null });
+    return { guild: starter, expedition: null };
   }
-  const starter = createStarterGuild();
-  await saveGameState(guildId, { guild: starter, expedition: null });
-  return { guild: starter, expedition: null };
+
+  const before = { guild: loaded.guild, expedition: loaded.expedition };
+  const snapshot = resolveSanctuary(before);
+  const beforeDead = before.guild.roster.filter((h) => h.status === 'Dead').length;
+  const afterDead = snapshot.guild.roster.filter((h) => h.status === 'Dead').length;
+  if (afterDead < beforeDead) {
+    await saveGameState(guildId, snapshot);
+  }
+  return snapshot;
 }
 
 /** Build the API router. Auth routes are registered before JSON body parsing. */
@@ -143,5 +153,6 @@ export function createApiApp(): Express {
     }
   });
 
+  startSanctuaryTicker();
   return app;
 }
