@@ -41,7 +41,7 @@ export interface Hero {
     armor: Equipment | null;
     accessory: Equipment | null;
   };
-  portraitSeed: string; // Used to generate unique procedurally drawn SVG portraits
+  portraitSeed: string; // R2 variant key under portraits/heroes/{class}/; SVG fallback if missing
   flavorText: string;
   traits: string[]; // e.g. ["Brave", "Clumsy", "Lucky"]
 }

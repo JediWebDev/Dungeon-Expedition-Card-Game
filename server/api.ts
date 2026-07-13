@@ -13,6 +13,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { isDatabaseConfigured } from '../db/index';
 import { getAuth } from './auth';
+import { isR2Configured, verifyR2Bucket } from './r2';
 import {
   getOrCreateGuildForUser,
   loadGameState,
@@ -67,8 +68,17 @@ export function createApiApp(): Express {
 
   app.use(express.json({ limit: '4mb' }));
 
-  app.get('/api/health', (_req: Request, res: Response) => {
-    res.json({ ok: true, database: isDatabaseConfigured() });
+  app.get('/api/health', async (_req: Request, res: Response) => {
+    let r2: boolean | 'unconfigured' = 'unconfigured';
+    if (isR2Configured()) {
+      try {
+        r2 = await verifyR2Bucket();
+      } catch (err) {
+        console.warn('[api] R2 health check failed:', err);
+        r2 = false;
+      }
+    }
+    res.json({ ok: true, database: isDatabaseConfigured(), r2 });
   });
 
   app.get('/api/state', async (req: Request, res: Response) => {

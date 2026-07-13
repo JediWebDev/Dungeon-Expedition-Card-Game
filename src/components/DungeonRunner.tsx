@@ -371,7 +371,12 @@ export const DungeonRunner: React.FC = () => {
                     isDead ? 'bg-red-950/5 border-red-950/20 opacity-40' : 'bg-stone-900/30 border-stone-850'
                   }`}
                 >
-                  <Portrait heroClass={hero.heroClass} isDead={isDead} size="sm" />
+                  <Portrait
+                    heroClass={hero.heroClass}
+                    portraitSeed={hero.portraitSeed}
+                    isDead={isDead}
+                    size="sm"
+                  />
                   <div className="flex-1 min-w-0 font-sans">
                     <div className="flex justify-between items-start">
                       <h4 className="text-sm font-bold text-stone-200 truncate pr-2 uppercase">{hero.name}</h4>
@@ -453,7 +458,11 @@ export const DungeonRunner: React.FC = () => {
                            .filter((h) => h.hp > 0)
                            .map((h) => (
                              <div key={h.id} className="relative group shrink-0" title={`${h.name}`}>
-                               <Portrait heroClass={heroClassMap(h.heroClass)} size="md" />
+                               <Portrait
+                                 heroClass={heroClassMap(h.heroClass)}
+                                 portraitSeed={h.portraitSeed}
+                                 size="md"
+                               />
                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-stone-950 text-[8px] font-mono font-bold px-1 rounded-sm border border-stone-850 text-stone-300">
                                  {h.hp}HP
                                </div>
@@ -499,7 +508,12 @@ export const DungeonRunner: React.FC = () => {
                                   isMDead ? 'opacity-30 line-through' : ''
                                 }`}
                               >
-                                <Portrait monsterType={monster.name} size="sm" isDead={isMDead} />
+                                <Portrait
+                                  monsterType={monster.name}
+                                  avatarSeed={monster.avatarSeed}
+                                  size="sm"
+                                  isDead={isMDead}
+                                />
                                 <div className="flex-1 min-w-0 text-left">
                                   <h5 className="text-[10px] font-bold text-stone-200 truncate uppercase">
                                     {monster.name}
@@ -703,7 +717,11 @@ export const DungeonRunner: React.FC = () => {
                                 className="bg-stone-900/50 border border-stone-850 p-2.5 rounded-sm flex flex-col sm:flex-row justify-between items-center gap-3 text-left font-sans"
                               >
                                 <div className="flex items-center gap-2">
-                                  <Portrait heroClass={hero.heroClass} size="sm" />
+                                  <Portrait
+                                    heroClass={hero.heroClass}
+                                    portraitSeed={hero.portraitSeed}
+                                    size="sm"
+                                  />
                                   <div>
                                     <h5 className="text-xs font-bold text-stone-200 uppercase">{hero.name}</h5>
                                     <span className="text-[10px] text-stone-400 font-semibold">

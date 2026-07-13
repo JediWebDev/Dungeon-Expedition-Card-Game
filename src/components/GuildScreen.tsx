@@ -193,7 +193,11 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                   >
                     <div>
                       <div className="flex gap-4 items-start mb-4">
-                        <Portrait heroClass={candidate.heroClass} size="md" />
+                        <Portrait
+                          heroClass={candidate.heroClass}
+                          portraitSeed={candidate.portraitSeed}
+                          size="md"
+                        />
                         <div>
                           <span className="text-[10px] uppercase font-sans font-bold tracking-widest text-amber-500 block">
                             Lvl {candidate.level} {candidate.heroClass}
@@ -663,7 +667,11 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <Portrait heroClass={hero.heroClass} size="sm" />
+                              <Portrait
+                                heroClass={hero.heroClass}
+                                portraitSeed={hero.portraitSeed}
+                                size="sm"
+                              />
                               <div className="font-sans">
                                 <h5 className="text-sm font-bold text-stone-200">{hero.name}</h5>
                                 <span className="text-[10px] text-stone-400">

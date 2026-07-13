@@ -150,7 +150,7 @@ export function generateRandomHero(level: number = 1): Hero {
       armor: null,
       accessory: null
     },
-    portraitSeed: Math.random().toString(),
+    portraitSeed: 'default',
     flavorText,
     traits
   };

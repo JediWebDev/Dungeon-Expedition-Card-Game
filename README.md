@@ -24,8 +24,56 @@
 | `npm run db:push` | Push schema directly (dev) |
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm run serve` | Run the standalone Express server (serves `dist/` + API in production) |
+| `npm run portraits:upload -- ./assets/portraits` | Upload portrait files to R2 |
 
 Why Drizzle: lightweight TypeScript ORM that fits this Vite/React stack and pairs cleanly with Better Auth’s drizzle adapter.
+
+## Cloudflare R2 (portraits)
+
+Hero and monster portraits are served from a **public** R2 bucket. Until
+`VITE_R2_PUBLIC_URL` is set (or an object is missing), the UI keeps the
+procedural SVG portraits.
+
+### Create the bucket (Cloudflare dashboard)
+
+1. Open [Cloudflare Dashboard → R2](https://dash.cloudflare.com/?to=/:account/r2).
+2. **Create bucket** named e.g. `guilds-of-ardessia-assets` (match `R2_BUCKET_NAME`).
+3. Open the bucket → **Settings**:
+   - Under **Public access**, enable an **r2.dev** subdomain (fine for local/dev),
+     **or** connect a **Custom Domain** for production.
+   - Copy the public base URL (no trailing slash) into `R2_PUBLIC_URL` and
+     `VITE_R2_PUBLIC_URL`.
+4. **Manage R2 API Tokens** → create a token with **Object Read & Write** scoped
+   to this bucket. Copy:
+   - Access Key ID → `R2_ACCESS_KEY_ID`
+   - Secret Access Key → `R2_SECRET_ACCESS_KEY`
+5. Your Account ID (R2 overview / URL) → `R2_ACCOUNT_ID`.
+
+### Object key layout
+
+```
+portraits/heroes/warrior/default.webp
+portraits/heroes/rogue/default.webp
+portraits/heroes/mage/default.webp
+portraits/heroes/cleric/default.webp
+portraits/heroes/{class}/{portraitSeed}.webp   # optional variants
+portraits/monsters/{avatarSeed}.webp           # e.g. goblin.webp, dragon.webp
+```
+
+Place matching files under `assets/portraits/…` locally, then:
+
+```bash
+npm run portraits:upload -- ./assets/portraits
+```
+
+### Code
+
+| File | Role |
+| --- | --- |
+| `server/r2.ts` | S3-compatible R2 client (uploads, health check). |
+| `src/lib/portraits.ts` | Public URL / object-key helpers for the browser. |
+| `src/components/Portrait.tsx` | Tries R2 images, falls back to SVG. |
+| `scripts/upload-portraits.ts` | Bulk upload helper. |
 
 ## Persistence architecture
 
@@ -58,7 +106,7 @@ API sits between the React client and PostgreSQL:
   (`401` if guest; `guild` is `null` for a brand-new save so the client seeds).
 - `PUT /api/state` → body `{ guild, expedition }` → saves that user's snapshot
   (`401` if guest; client-supplied guild ids are ignored).
-- `GET /api/health` → `{ ok, database }`.
+- `GET /api/health` → `{ ok, database, r2 }`.
 
 It's a **save-state / load-state pair** rather than per-entity CRUD because the
 client holds the entire campaign in a single React context and mutates many

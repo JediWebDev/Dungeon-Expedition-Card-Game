@@ -108,7 +108,12 @@ export const HeroCard: React.FC<HeroCardProps> = ({
 
       {/* Main Avatar + Name Block */}
       <div className="flex gap-4 items-start mb-4">
-        <Portrait heroClass={hero.heroClass} isDead={hero.status === 'Dead'} size="lg" />
+        <Portrait
+          heroClass={hero.heroClass}
+          portraitSeed={hero.portraitSeed}
+          isDead={hero.status === 'Dead'}
+          size="lg"
+        />
         <div className="flex-1 min-w-0">
           <div className="text-[10px] text-amber-500 font-bold tracking-widest uppercase mb-0.5 font-sans">
             Level {hero.level} {hero.heroClass}
