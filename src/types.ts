@@ -67,6 +67,8 @@ export type RoomType =
   | 'Boss';
 
 export interface Monster {
+  /** Stable id for turn targeting (required for turn-based combat). */
+  id: string;
   name: string;
   hp: number;
   maxHp: number;
@@ -74,6 +76,30 @@ export interface Monster {
   defense: number;
   speed: number;
   avatarSeed: string;
+}
+
+export type CombatMode = 'manual' | 'auto';
+
+export type CombatActionType = 'attack' | 'skill' | 'spell' | 'item' | 'defend';
+
+export interface CombatTurnEntry {
+  side: 'hero' | 'monster';
+  id: string;
+}
+
+export interface CombatState {
+  mode: CombatMode;
+  /** Waiting for player command on a hero turn. */
+  awaitingInput: boolean;
+  round: number;
+  /** Speed-ordered initiative for the current round. */
+  turnQueue: CombatTurnEntry[];
+  /** Index into turnQueue for the active combatant. */
+  turnIndex: number;
+  /** Combatant ids currently defending (cleared when their next turn starts). */
+  defendingIds: string[];
+  /** Per-hero item uses remaining this fight. */
+  itemUsesRemaining: Record<string, number>;
 }
 
 export interface EventOutcome {
@@ -136,7 +162,7 @@ export interface Dungeon {
 export interface CombatLog {
   id: string;
   text: string;
-  type: 'info' | 'attack' | 'heal' | 'damage' | 'death' | 'victory' | 'defeat';
+  type: 'info' | 'attack' | 'heal' | 'damage' | 'death' | 'victory' | 'defeat' | 'defend' | 'skill' | 'spell' | 'item';
   timestamp: number;
 }
 
@@ -152,11 +178,14 @@ export interface ExpeditionState {
     relics: Relic[];
   };
   speed: 1 | 2 | 3;
+  /** Display alias of combat.round when in a fight. */
   combatRound: number;
   activeTurn?: 'hero' | 'monster';
   activeRoomChoiceMade?: boolean;
   selectedEventOutcomeText?: string;
   merchantItemsStock?: Equipment[];
+  /** Turn-based battle state; null outside combat rooms. */
+  combat: CombatState | null;
 }
 
 export interface GuildState {

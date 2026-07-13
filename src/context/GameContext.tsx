@@ -64,7 +64,12 @@ interface GameContextProps {
   startExpedition: (dungeonId: string, partyHeroIds: string[]) => void;
   retreatExpedition: () => void;
   proceedToNextRoom: () => void;
-  executeCombatRound: () => void;
+  advanceCombat: () => void;
+  submitCombatAction: (
+    action: 'attack' | 'skill' | 'spell' | 'item' | 'defend',
+    targetId?: string
+  ) => void;
+  setCombatMode: (mode: 'manual' | 'auto') => void;
   makeEventChoice: (choiceIndex: number) => void;
   handleCampfireChoice: (option: 'heal' | 'morale' | 'train') => void;
   handleTrapChoice: (heroId: string, method: 'speed' | 'defense' | 'luck') => void;
@@ -217,7 +222,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       runAction({ type: 'startExpedition', dungeonId, partyHeroIds }, { openExpedition: true }),
     retreatExpedition: () => runAction({ type: 'retreatExpedition' }),
     proceedToNextRoom: () => runAction({ type: 'proceedToNextRoom' }),
-    executeCombatRound: () => runAction({ type: 'executeCombatRound' }),
+    advanceCombat: () => runAction({ type: 'advanceCombat' }),
+    submitCombatAction: (action, targetId) =>
+      runAction({ type: 'submitCombatAction', action, targetId }),
+    setCombatMode: (mode) => runAction({ type: 'setCombatMode', mode }),
     makeEventChoice: (choiceIndex) => runAction({ type: 'makeEventChoice', choiceIndex }),
     handleCampfireChoice: (option) => runAction({ type: 'handleCampfireChoice', option }),
     handleTrapChoice: (heroId, method) => runAction({ type: 'handleTrapChoice', heroId, method }),

@@ -36,18 +36,17 @@ import {
   getHealCost,
   getInstantReviveCost,
 } from '../../src/sanctuary';
+import {
+  bindCombatSettlers,
+  handleAdvanceCombat,
+  handleSetCombatMode,
+  handleSubmitCombatAction,
+  prepareRoomCombat,
+} from './combat';
+import { GameActionError, type GameSnapshot } from './types';
 
-export interface GameSnapshot {
-  guild: GuildState;
-  expedition: ExpeditionState | null;
-}
-
-export class GameActionError extends Error {
-  constructor(message: string, public statusCode = 400) {
-    super(message);
-    this.name = 'GameActionError';
-  }
-}
+export type { GameSnapshot } from './types';
+export { GameActionError } from './types';
 
 /** Narrows `GameAction` to the variant matching a given `type` literal. */
 type ActionOf<T extends GameAction['type']> = Extract<GameAction, { type: T }>;
@@ -205,8 +204,12 @@ export function applyGameAction(state: GameSnapshot, action: GameAction): GameSn
     case 'proceedToNextRoom':
     case 'claimTreasureAndProceed':
       return handleProceedToNextRoom(guild, expedition);
-    case 'executeCombatRound':
-      return handleExecuteCombatRound(guild, expedition);
+    case 'advanceCombat':
+      return handleAdvanceCombat(guild, expedition);
+    case 'submitCombatAction':
+      return handleSubmitCombatAction(guild, expedition, action.action, action.targetId);
+    case 'setCombatMode':
+      return handleSetCombatMode(guild, expedition, action.mode);
     case 'makeEventChoice':
       return handleMakeEventChoice(guild, expedition, action);
     case 'handleCampfireChoice':
@@ -490,14 +493,19 @@ function handleStartExpedition(
     combatRound: 1,
     activeTurn: 'hero',
     activeRoomChoiceMade: false,
-    merchantItemsStock
+    merchantItemsStock,
+    combat: null,
   };
 
   const roster = guild.roster.map((h) =>
     action.partyHeroIds.includes(h.id) ? { ...h, status: 'Expedition' as const } : h
   );
 
-  return { guild: { ...guild, roster }, expedition: newExpedition };
+  const guildWithRoster = { ...guild, roster };
+  return {
+    guild: guildWithRoster,
+    expedition: prepareRoomCombat(guildWithRoster, newExpedition),
+  };
 }
 
 function handleRetreatExpedition(guild: GuildState, expedition: ExpeditionState | null): GameSnapshot {
@@ -691,39 +699,16 @@ function advanceToRoom(guild: GuildState, expedition: ExpeditionState, nextIndex
     combatRound: 1,
     activeRoomChoiceMade: false,
     selectedEventOutcomeText: undefined,
-    merchantItemsStock: merchantStock
+    merchantItemsStock: merchantStock,
+    combat: null,
   };
 
-  return { guild, expedition: nextExpedition };
+  return { guild, expedition: prepareRoomCombat(guild, nextExpedition) };
 }
 
 // ---------------------------------------------------------------------------
-// Combat
+// Combat settlements (used by turn-based combat module)
 // ---------------------------------------------------------------------------
-
-function handleExecuteCombatRound(guild: GuildState, expedition: ExpeditionState | null): GameSnapshot {
-  if (!expedition) throw new GameActionError('No active expedition.');
-  if (expedition.status !== 'room_active') throw new GameActionError('Cannot execute a combat round right now.');
-
-  const activeRoom = getActiveRoom(expedition);
-  if (!COMBAT_ROOM_TYPES.includes(activeRoom.type)) {
-    throw new GameActionError('This room has no combat to resolve.');
-  }
-  if (expedition.activeRoomChoiceMade) {
-    throw new GameActionError('This combat has already been resolved; proceed to the next room.');
-  }
-
-  const monsters = activeRoom.monsterGroup;
-  if (!monsters || monsters.length === 0) throw new GameActionError('No monsters to fight in this room.');
-
-  const aliveHeroes = expedition.party.filter((h) => h.hp > 0);
-  const aliveMonsters = monsters.filter((m) => m.hp > 0);
-
-  if (aliveHeroes.length === 0) return settleExpeditionDefeat(guild, expedition);
-  if (aliveMonsters.length === 0) return settleRoomCleared(guild, expedition, activeRoom);
-
-  return resolveCombatRound(guild, expedition, monsters, aliveHeroes, aliveMonsters);
-}
 
 function settleExpeditionDefeat(guild: GuildState, expedition: ExpeditionState): GameSnapshot {
   const now = Date.now();
@@ -734,6 +719,7 @@ function settleExpeditionDefeat(guild: GuildState, expedition: ExpeditionState):
   const settledExpedition: ExpeditionState = {
     ...expedition,
     status: 'defeat',
+    combat: null,
     logs: [
       ...expedition.logs,
       {
@@ -786,177 +772,25 @@ function settleRoomCleared(guild: GuildState, expedition: ExpeditionState, curre
       equipment: [...expedition.lootEarned.equipment, ...itemsEarned]
     },
     activeRoomChoiceMade: true,
+    combat: null,
     logs: [...expedition.logs, clearedLog]
   };
 
   return { guild, expedition: nextExpedition };
 }
 
-interface SpeedTracker {
-  type: 'hero' | 'monster';
-  id: string;
-  speed: number;
-}
+bindCombatSettlers({
+  settleDefeat: settleExpeditionDefeat,
+  settleClear: (g, e) => {
+    const room = e.dungeon.rooms?.[e.currentRoomIndex];
+    if (!room) return { guild: g, expedition: { ...e, combat: null } };
+    return settleRoomCleared(g, e, room);
+  },
+});
 
-function resolveCombatRound(
-  guild: GuildState,
-  expedition: ExpeditionState,
-  monsters: Monster[],
-  aliveHeroes: Hero[],
-  aliveMonsters: Monster[]
-): GameSnapshot {
-  const combatLogs: CombatLog[] = [];
-  // Clone every hero/monster we might touch so the original state objects are never mutated.
-  const nextParty = expedition.party.map((h) => ({ ...h }));
-  const nextMonsters = monsters.map((m) => ({ ...m }));
-
-  const participants: SpeedTracker[] = [];
-  aliveHeroes.forEach((h) => {
-    const stats = getModifiedStats(h, guild.relics);
-    participants.push({ type: 'hero', id: h.id, speed: stats.speed });
-  });
-  aliveMonsters.forEach((m, idx) => {
-    participants.push({ type: 'monster', id: idx.toString(), speed: m.speed });
-  });
-
-  participants.sort((a, b) => b.speed - a.speed);
-
-  participants.forEach((p) => {
-    const livingH = nextParty.filter((h) => h.hp > 0);
-    const livingM = nextMonsters.filter((m) => m.hp > 0);
-    if (livingH.length === 0 || livingM.length === 0) return;
-
-    if (p.type === 'hero') {
-      const attacker = nextParty.find((h) => h.id === p.id);
-      if (!attacker || attacker.hp <= 0) return;
-
-      const modStats = getModifiedStats(attacker, guild.relics);
-
-      // Cleric specialization: chance to heal the weakest teammate instead of attacking.
-      if (attacker.heroClass === 'Cleric' && Math.random() > 0.6) {
-        const weakestHero = [...nextParty]
-          .filter((h) => h.hp > 0 && h.hp < getModifiedStats(h, guild.relics).maxHp)
-          .sort((a, b) => a.hp - b.hp)[0];
-
-        if (weakestHero) {
-          const hIndex = nextParty.findIndex((h) => h.id === weakestHero.id);
-          const healedHero = { ...nextParty[hIndex] };
-          const hStats = getModifiedStats(healedHero, guild.relics);
-          const healVal = Math.round(modStats.attack * 0.9 + 10);
-
-          healedHero.hp = Math.min(hStats.maxHp, healedHero.hp + healVal);
-          nextParty[hIndex] = healedHero;
-
-          combatLogs.push({
-            id: generateId(),
-            text: `✨ Cleric ${attacker.name} channels Holy Light, healing ${healedHero.name} for +${healVal} HP!`,
-            type: 'heal',
-            timestamp: Date.now()
-          });
-          return;
-        }
-      }
-
-      const targetIdx = Math.floor(Math.random() * livingM.length);
-      const targetMonsterName = livingM[targetIdx].name;
-      const realMonsterIdxInList = nextMonsters.findIndex((m) => m.name === targetMonsterName && m.hp > 0);
-
-      // Mage specialization: chance to splash two targets with a weaker AOE hit.
-      if (attacker.heroClass === 'Mage' && Math.random() > 0.65 && livingM.length > 1) {
-        livingM.slice(0, 2).forEach((targetM) => {
-          const index = nextMonsters.findIndex((nm) => nm.name === targetM.name && nm.hp > 0);
-          if (index !== -1) {
-            const baseDmg = Math.round(modStats.attack * 0.65);
-            const mDefense = nextMonsters[index].defense;
-            const finalDmg = Math.max(2, baseDmg - mDefense);
-
-            nextMonsters[index].hp = Math.max(0, nextMonsters[index].hp - finalDmg);
-            combatLogs.push({
-              id: generateId(),
-              text: `🔥 Mage ${attacker.name} casts Fireball! Splashes ${nextMonsters[index].name} for ${finalDmg} elemental dmg!`,
-              type: 'attack',
-              timestamp: Date.now()
-            });
-          }
-        });
-      } else {
-        const mDefense = nextMonsters[realMonsterIdxInList].defense;
-        const criticalRoll = Math.random() * 100;
-        const isCrit = criticalRoll < modStats.luck;
-        const dmgMult = isCrit ? 1.75 : 1.0;
-
-        const baseDmg = Math.round(modStats.attack * (0.8 + Math.random() * 0.4) * dmgMult);
-        const finalDmg = Math.max(2, baseDmg - mDefense);
-
-        nextMonsters[realMonsterIdxInList].hp = Math.max(0, nextMonsters[realMonsterIdxInList].hp - finalDmg);
-
-        combatLogs.push({
-          id: generateId(),
-          text: `${isCrit ? '💥 CRITICAL! ' : '⚔️ '}${attacker.name} strikes ${
-            nextMonsters[realMonsterIdxInList].name
-          } for ${finalDmg} dmg!`,
-          type: isCrit ? 'damage' : 'attack',
-          timestamp: Date.now()
-        });
-      }
-    } else {
-      const monsterIdx = parseInt(p.id, 10);
-      const attacker = nextMonsters[monsterIdx];
-      if (!attacker || attacker.hp <= 0) return;
-
-      const targetIdx = Math.floor(Math.random() * livingH.length);
-      const targetHero = livingH[targetIdx];
-      const hIndex = nextParty.findIndex((h) => h.id === targetHero.id);
-
-      const hStats = getModifiedStats(targetHero, guild.relics);
-
-      // Rogue evasion: flat dodge chance.
-      if (targetHero.heroClass === 'Rogue' && Math.random() > 0.8) {
-        combatLogs.push({
-          id: generateId(),
-          text: `💨 Rogue ${targetHero.name} smoothly dodges ${attacker.name}'s swing!`,
-          type: 'info',
-          timestamp: Date.now()
-        });
-        return;
-      }
-
-      const baseDmg = Math.round(attacker.attack * (0.85 + Math.random() * 0.3));
-      const finalDmg = Math.max(3, baseDmg - hStats.defense);
-
-      nextParty[hIndex].hp = Math.max(0, nextParty[hIndex].hp - finalDmg);
-
-      combatLogs.push({
-        id: generateId(),
-        text: `👺 ${attacker.name} claws ${targetHero.name} dealing ${finalDmg} raw physical damage!`,
-        type: 'damage',
-        timestamp: Date.now()
-      });
-
-      if (nextParty[hIndex].hp <= 0) {
-        combatLogs.push({
-          id: generateId(),
-          text: `🥀 Heavy blow! ${targetHero.name} has collapsed!`,
-          type: 'death',
-          timestamp: Date.now()
-        });
-      }
-    }
-  });
-
-  const rooms = expedition.dungeon.rooms ?? [];
-  const updatedRooms = rooms.map((r, idx) => (idx === expedition.currentRoomIndex ? { ...r, monsterGroup: nextMonsters } : r));
-
-  const nextExpedition: ExpeditionState = {
-    ...expedition,
-    party: nextParty,
-    dungeon: { ...expedition.dungeon, rooms: updatedRooms },
-    combatRound: expedition.combatRound + 1,
-    logs: [...expedition.logs, ...combatLogs]
-  };
-
-  return { guild, expedition: nextExpedition };
-}
+// ---------------------------------------------------------------------------
+// Non-combat room resolutions
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Non-combat room resolutions

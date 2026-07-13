@@ -18,8 +18,6 @@ import {
   ShoppingBag,
   HelpCircle,
   AlertTriangle,
-  Play,
-  Pause,
   Home,
   ShieldCheck,
   Zap,
@@ -34,17 +32,20 @@ export const DungeonRunner: React.FC = () => {
     expedition,
     guild,
     proceedToNextRoom,
-    executeCombatRound,
+    advanceCombat,
+    submitCombatAction,
+    setCombatMode,
     makeEventChoice,
     handleCampfireChoice,
     handleTrapChoice,
     buyMerchantItem,
     retreatExpedition,
     setActiveScreen,
-    setExpeditionSpeed
+    setExpeditionSpeed,
+    actionPending,
   } = useGame();
 
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Derived values used by hooks — must stay above any early returns so hook
@@ -60,6 +61,20 @@ export const DungeonRunner: React.FC = () => {
   const activeRoom = dungeon?.rooms?.[currentRoomIndex];
   const activeRoomType = activeRoom?.type;
   const activeRoomChoiceMade = expedition?.activeRoomChoiceMade ?? false;
+  const combat = expedition?.combat ?? null;
+  const combatMode = combat?.mode ?? 'manual';
+  const awaitingInput = Boolean(combat?.awaitingInput);
+  const activeTurnEntry = combat?.turnQueue[combat.turnIndex] ?? null;
+  const activeHero =
+    activeTurnEntry?.side === 'hero'
+      ? party.find((h) => h.id === activeTurnEntry.id) ?? null
+      : null;
+
+  const pickDefaultAllyId = (): string | null => {
+    const allies = party.filter((h) => h.hp > 0);
+    if (allies.length === 0) return null;
+    return [...allies].sort((a, b) => a.hp - b.hp)[0]?.id ?? null;
+  };
 
   // Auto-scrolling battle logs
   useEffect(() => {
@@ -68,9 +83,9 @@ export const DungeonRunner: React.FC = () => {
     }
   }, [logs.length]);
 
-  // Automated Combat Game Loop
+  // Auto-battle: advance one action at a slower, readable pace.
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (combatMode !== 'auto') return;
     if (status !== 'room_active') return;
     if (!activeRoomType) return;
 
@@ -80,30 +95,28 @@ export const DungeonRunner: React.FC = () => {
       activeRoomType === 'Boss';
 
     if (!isCombatRoom || activeRoomChoiceMade) return;
+    if (actionPending) return;
 
-    // Tick speed matches game speed multiplier
-    const msInterval = 1000 / speed;
-
+    const msInterval = 1600 / speed;
     const intervalId = setInterval(() => {
-      executeCombatRound();
+      advanceCombat();
     }, msInterval);
 
     return () => clearInterval(intervalId);
-  }, [isAutoPlaying, activeRoomType, activeRoomChoiceMade, status, speed, executeCombatRound]);
+  }, [
+    combatMode,
+    activeRoomType,
+    activeRoomChoiceMade,
+    status,
+    speed,
+    advanceCombat,
+    actionPending,
+  ]);
 
-  // Pause auto-play when a non-combat room needs a player choice
+  // Clear selected target when turn changes
   useEffect(() => {
-    if (!activeRoomType) return;
-
-    const isCombatRoom =
-      activeRoomType === 'Monster' ||
-      activeRoomType === 'Elite Monster' ||
-      activeRoomType === 'Boss';
-
-    if (!isCombatRoom && !activeRoomChoiceMade) {
-      setIsAutoPlaying(false);
-    }
-  }, [activeRoomType, activeRoomChoiceMade]);
+    setSelectedTargetId(null);
+  }, [combat?.turnIndex, combat?.round]);
 
   // Active room pointers
   if (!expedition) {
@@ -241,6 +254,16 @@ export const DungeonRunner: React.FC = () => {
         return 'text-red-400 border-l-2 border-red-500 pl-2 bg-red-950/20 py-1 rounded-sm font-semibold';
       case 'attack':
         return 'text-stone-300';
+      case 'skill':
+        return 'text-orange-300 font-semibold';
+      case 'spell':
+        return 'text-violet-300 font-semibold';
+      case 'item':
+        return 'text-cyan-300 font-semibold';
+      case 'defend':
+        return 'text-sky-400 font-semibold';
+      case 'info':
+        return 'text-stone-400 italic';
       default:
         return 'text-stone-400';
     }
@@ -456,8 +479,28 @@ export const DungeonRunner: React.FC = () => {
                       <div className="flex -space-x-3 sm:space-x-0 sm:flex-col gap-1.5 sm:gap-2">
                         {party
                            .filter((h) => h.hp > 0)
-                           .map((h) => (
-                             <div key={h.id} className="relative group shrink-0" title={`${h.name}`}>
+                           .map((h) => {
+                             const isActive = activeTurnEntry?.side === 'hero' && activeTurnEntry.id === h.id;
+                             const isAllyTarget = selectedTargetId === h.id;
+                             const canSelectAlly =
+                               awaitingInput &&
+                               activeHero?.heroClass === 'Cleric' &&
+                               h.id !== activeHero.id;
+                             return (
+                             <button
+                               type="button"
+                               key={h.id}
+                               disabled={!canSelectAlly}
+                               onClick={() => canSelectAlly && setSelectedTargetId(h.id)}
+                               className={`relative group shrink-0 rounded-sm transition ${
+                                 isActive
+                                   ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-stone-950'
+                                   : isAllyTarget
+                                     ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-stone-950'
+                                     : ''
+                               } ${canSelectAlly ? 'cursor-pointer' : 'cursor-default'}`}
+                               title={h.name}
+                             >
                                <Portrait
                                  heroClass={heroClassMap(h.heroClass)}
                                  portraitSeed={h.portraitSeed}
@@ -466,46 +509,80 @@ export const DungeonRunner: React.FC = () => {
                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-stone-950 text-[8px] font-mono font-bold px-1 rounded-sm border border-stone-850 text-stone-300">
                                  {h.hp}HP
                                </div>
-                             </div>
-                           ))}
+                             </button>
+                           );})}
                       </div>
 
-                      {/* Middle: Versus sign & Auto tick controls */}
-                      <div className="text-center font-sans">
+                      {/* Middle: Versus + mode + commands */}
+                      <div className="text-center font-sans flex flex-col items-center gap-2 min-w-[200px]">
                         <span className="text-[10px] uppercase tracking-widest font-bold text-stone-500 block">
-                          Round {expedition.combatRound}
+                          Round {combat?.round ?? expedition.combatRound}
                         </span>
-                        <div className="text-xl font-black italic text-red-500 py-1.5 px-4 bg-stone-950 border border-stone-800 rounded-sm my-2 tracking-widest">
+                        <div className="text-xl font-black italic text-red-500 py-1.5 px-4 bg-stone-950 border border-stone-800 rounded-sm tracking-widest">
                           VS
                         </div>
+                        {activeHero && (
+                          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                            {activeHero.name}&apos;s turn
+                          </p>
+                        )}
+                        {activeTurnEntry?.side === 'monster' && combatMode === 'manual' && (
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+                            Enemy acting…
+                          </p>
+                        )}
 
-                        {/* Tick button handles */}
                         {!expedition.activeRoomChoiceMade && (
-                          <button
-                            onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                            className={`p-2 rounded-full border transition-all cursor-pointer ${
-                              isAutoPlaying
-                                ? 'bg-amber-900/20 text-amber-500 border-amber-900/40 hover:bg-amber-900/40'
-                                : 'bg-stone-900 text-stone-300 border-stone-800 hover:bg-stone-800'
-                            }`}
-                            title={isAutoPlaying ? 'Pause Combat Auto-Play' : 'Resume Combat Auto-Play'}
-                          >
-                            {isAutoPlaying ? <Pause size={14} /> : <Play size={14} fill="currentColor" />}
-                          </button>
+                          <div className="flex gap-1.5 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => setCombatMode('manual')}
+                              className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
+                                combatMode === 'manual'
+                                  ? 'bg-amber-900/30 text-amber-400 border-amber-800'
+                                  : 'bg-stone-950 text-stone-500 border-stone-800 hover:text-stone-300'
+                              }`}
+                            >
+                              Manual
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCombatMode('auto')}
+                              className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
+                                combatMode === 'auto'
+                                  ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800'
+                                  : 'bg-stone-950 text-stone-500 border-stone-800 hover:text-stone-300'
+                              }`}
+                            >
+                              Auto
+                            </button>
+                          </div>
                         )}
                       </div>
 
                       {/* Right: Monsters party block */}
                       <div className="flex -space-x-3 sm:space-x-0 sm:flex-col gap-1.5 sm:gap-2">
                         {activeRoom!.monsterGroup && activeRoom!.monsterGroup.length > 0 ? (
-                          activeRoom!.monsterGroup.map((monster, idx) => {
+                          activeRoom!.monsterGroup.map((monster) => {
                             const isMDead = monster.hp <= 0;
                             const mHpPct = isMDead ? 0 : (monster.hp / monster.maxHp) * 100;
+                            const isActive =
+                              activeTurnEntry?.side === 'monster' && activeTurnEntry.id === monster.id;
+                            const isTarget = selectedTargetId === monster.id;
                             return (
-                              <div
-                                key={idx}
-                                className={`flex items-center gap-2 bg-stone-900/60 p-2 rounded-sm border border-stone-850 w-[140px] shrink-0 font-sans ${
-                                  isMDead ? 'opacity-30 line-through' : ''
+                              <button
+                                type="button"
+                                key={monster.id || monster.name}
+                                disabled={isMDead || !awaitingInput}
+                                onClick={() => !isMDead && setSelectedTargetId(monster.id)}
+                                className={`flex items-center gap-2 bg-stone-900/60 p-2 rounded-sm border w-[150px] shrink-0 font-sans text-left transition ${
+                                  isMDead
+                                    ? 'opacity-30 line-through border-stone-850'
+                                    : isTarget
+                                      ? 'border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                                      : isActive
+                                        ? 'border-red-600'
+                                        : 'border-stone-850 hover:border-stone-600 cursor-pointer'
                                 }`}
                               >
                                 <Portrait
@@ -528,7 +605,7 @@ export const DungeonRunner: React.FC = () => {
                                     {isMDead ? 0 : monster.hp}HP
                                   </span>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })
                         ) : (
@@ -536,6 +613,93 @@ export const DungeonRunner: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Manual command bar */}
+                    {!expedition.activeRoomChoiceMade && awaitingInput && activeHero && (
+                      <div className="mt-3 pt-3 border-t border-stone-800 space-y-2 font-sans">
+                        <p className="text-[10px] text-stone-400 uppercase tracking-wider font-bold">
+                          Command {activeHero.name}
+                          {selectedTargetId
+                            ? ` → ${
+                                activeRoom!.monsterGroup?.find((m) => m.id === selectedTargetId)?.name ??
+                                party.find((h) => h.id === selectedTargetId)?.name ??
+                                'target'
+                              }`
+                            : ' (select a foe for Attack / Skill)'}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(
+                            [
+                              ['attack', 'Attack', Swords],
+                              ['skill', 'Skill', Zap],
+                              ['spell', 'Spell', Sparkles],
+                              ['item', 'Item', Heart],
+                              ['defend', 'Defend', ShieldCheck],
+                            ] as const
+                          ).map(([action, label, Icon]) => {
+                            const needsEnemy =
+                              action === 'attack' ||
+                              action === 'skill' ||
+                              (action === 'spell' && activeHero.heroClass !== 'Cleric' && activeHero.heroClass !== 'Mage');
+                            const needsAlly =
+                              action === 'spell' && activeHero.heroClass === 'Cleric';
+                            const enemySelected = Boolean(
+                              selectedTargetId &&
+                                activeRoom!.monsterGroup?.some((m) => m.id === selectedTargetId)
+                            );
+                            const allySelected = Boolean(
+                              selectedTargetId && party.some((h) => h.id === selectedTargetId && h.hp > 0)
+                            );
+                            const disabled =
+                              actionPending ||
+                              (needsEnemy && !enemySelected) ||
+                              (needsAlly && !allySelected && !pickDefaultAllyId()) ||
+                              (action === 'item' &&
+                                (combat?.itemUsesRemaining[activeHero.id] ?? 0) <= 0);
+                            return (
+                              <button
+                                key={action}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => {
+                                  let targetId: string | undefined;
+                                  if (needsEnemy) targetId = selectedTargetId ?? undefined;
+                                  else if (needsAlly)
+                                    targetId = allySelected
+                                      ? selectedTargetId!
+                                      : pickDefaultAllyId() ?? undefined;
+                                  else if (action === 'spell' && activeHero.heroClass === 'Mage')
+                                    targetId = undefined;
+                                  submitCombatAction(action, targetId);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-[10px] font-bold uppercase tracking-wider border transition ${
+                                  disabled
+                                    ? 'bg-stone-950 text-stone-600 border-stone-850 cursor-not-allowed'
+                                    : 'bg-stone-900 text-stone-200 border-stone-700 hover:border-amber-600 hover:text-amber-400 cursor-pointer'
+                                }`}
+                              >
+                                <Icon size={12} /> {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {!expedition.activeRoomChoiceMade &&
+                      combatMode === 'manual' &&
+                      !awaitingInput &&
+                      !actionPending && (
+                        <div className="mt-2 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => advanceCombat()}
+                            className="text-[10px] uppercase tracking-wider font-bold text-stone-400 hover:text-amber-400 border border-stone-800 px-3 py-1.5 rounded-sm cursor-pointer"
+                          >
+                            Advance enemy turn
+                          </button>
+                        </div>
+                      )}
 
                     {/* Proceed Action bounds */}
                     {expedition.activeRoomChoiceMade && (
@@ -844,9 +1008,9 @@ export const DungeonRunner: React.FC = () => {
           <div className="bg-stone-900/20 border border-stone-800 p-4 rounded-sm flex flex-col min-h-[160px] max-h-[220px]">
             <h4 className="text-[10px] uppercase font-bold tracking-widest text-stone-500 mb-2 border-b border-stone-850/60 pb-1 flex justify-between items-center font-sans">
               <span>Expedition Battle Log Console</span>
-              {isAutoPlaying && (
-                <span className="text-amber-500 animate-pulse text-[9px] normal-case tracking-normal">
-                  • System auto-playing logs
+              {combatMode === 'auto' && !expedition?.activeRoomChoiceMade && (
+                <span className="text-cyan-400 animate-pulse text-[9px] normal-case tracking-normal">
+                  • Auto-battle
                 </span>
               )}
             </h4>

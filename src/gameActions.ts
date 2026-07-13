@@ -20,7 +20,14 @@ export type GameAction =
   | { type: 'startExpedition'; dungeonId: string; partyHeroIds: string[] }
   | { type: 'retreatExpedition' }
   | { type: 'proceedToNextRoom' }
-  | { type: 'executeCombatRound' }
+  | { type: 'advanceCombat' }
+  | {
+      type: 'submitCombatAction';
+      action: 'attack' | 'skill' | 'spell' | 'item' | 'defend';
+      targetId?: string;
+      itemId?: string;
+    }
+  | { type: 'setCombatMode'; mode: 'manual' | 'auto' }
   | { type: 'makeEventChoice'; choiceIndex: number }
   | { type: 'handleCampfireChoice'; option: 'heal' | 'morale' | 'train' }
   | { type: 'handleTrapChoice'; heroId: string; method: 'speed' | 'defense' | 'luck' }
@@ -42,7 +49,9 @@ const ACTION_TYPES = new Set<GameAction['type']>([
   'startExpedition',
   'retreatExpedition',
   'proceedToNextRoom',
-  'executeCombatRound',
+  'advanceCombat',
+  'submitCombatAction',
+  'setCombatMode',
   'makeEventChoice',
   'handleCampfireChoice',
   'handleTrapChoice',

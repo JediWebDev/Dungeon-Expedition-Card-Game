@@ -203,6 +203,7 @@ export function generateMonster(tier: 'common' | 'elite' | 'boss'): Monster {
   // Add slight statistical variance (+/- 15%)
   const variance = 0.85 + Math.random() * 0.3;
   return {
+    id: generateId(),
     name: template.name,
     maxHp: Math.round(template.hp * variance),
     hp: Math.round(template.hp * variance),
