@@ -1,13 +1,12 @@
 /**
- * Express API: Better Auth + game persistence.
+ * Express API: Better Auth + authoritative game actions + persistence.
  *
- *   ALL  /api/auth/*  -> Better Auth handler (must be mounted BEFORE express.json)
- *   GET  /api/state   -> session-scoped guild load
- *   PUT  /api/state   -> session-scoped guild save
- *   GET  /api/health  -> { ok, database }
+ *   ALL  /api/auth/*       -> Better Auth
+ *   GET  /api/state        -> load (or seed) the signed-in user's guild
+ *   POST /api/game/action  -> apply a GameAction on the server, save, return state
+ *   GET  /api/health       -> { ok, database, r2 }
  *
- * Mounted into the Vite dev server (vite.config.ts) and the standalone
- * production server (server/index.ts).
+ * PUT /api/state is intentionally removed — clients may not write raw snapshots.
  */
 import express, { type Express, type Request, type Response } from 'express';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
@@ -19,6 +18,13 @@ import {
   loadGameState,
   saveGameState,
 } from './repository';
+import { isGameAction } from './game/actions';
+import {
+  applyGameAction,
+  createStarterGuild,
+  GameActionError,
+  type GameSnapshot,
+} from './game/engine';
 
 function dbUnavailable(res: Response) {
   res.status(503).json({
@@ -38,6 +44,17 @@ async function getSessionUserId(req: Request): Promise<string | null> {
     console.error('[api] session lookup failed:', err);
     return null;
   }
+}
+
+/** Load guild+expedition, seeding a starter guild on first play. */
+async function loadOrSeedSnapshot(guildId: string): Promise<GameSnapshot> {
+  const loaded = await loadGameState(guildId);
+  if (loaded.guild) {
+    return { guild: loaded.guild, expedition: loaded.expedition };
+  }
+  const starter = createStarterGuild();
+  await saveGameState(guildId, { guild: starter, expedition: null });
+  return { guild: starter, expedition: null };
 }
 
 /** Build the API router. Auth routes are registered before JSON body parsing. */
@@ -66,7 +83,7 @@ export function createApiApp(): Express {
     }
   });
 
-  app.use(express.json({ limit: '4mb' }));
+  app.use(express.json({ limit: '1mb' }));
 
   app.get('/api/health', async (_req: Request, res: Response) => {
     let r2: boolean | 'unconfigured' = 'unconfigured';
@@ -89,33 +106,40 @@ export function createApiApp(): Express {
         return res.status(401).json({ error: 'Sign in to load your guild save.' });
       }
       const guildId = await getOrCreateGuildForUser(userId);
-      const state = await loadGameState(guildId);
-      res.json({ guildId, ...state });
+      const snapshot = await loadOrSeedSnapshot(guildId);
+      res.json({ guildId, ...snapshot });
     } catch (err) {
       console.error('[api] GET /api/state failed:', err);
       res.status(500).json({ error: 'Failed to load game state.' });
     }
   });
 
-  app.put('/api/state', async (req: Request, res: Response) => {
+  /**
+   * Authoritative game command.
+   * Body: a GameAction. Server loads state, applies rules, saves, returns snapshot.
+   */
+  app.post('/api/game/action', async (req: Request, res: Response) => {
     if (!isDatabaseConfigured()) return dbUnavailable(res);
     try {
       const userId = await getSessionUserId(req);
       if (!userId) {
-        return res.status(401).json({ error: 'Sign in to save your guild.' });
+        return res.status(401).json({ error: 'Sign in to play. Guest clients cannot mutate game state.' });
       }
-      const { guild, expedition } = req.body ?? {};
-      if (!guild) {
-        return res.status(400).json({ error: 'Missing "guild" in request body.' });
+      if (!isGameAction(req.body)) {
+        return res.status(400).json({ error: 'Invalid game action.' });
       }
+
       const guildId = await getOrCreateGuildForUser(userId);
-      // Ignore client-supplied guildId — always resolve from the session user
-      // so one account cannot overwrite another player's save.
-      await saveGameState(guildId, { guild, expedition: expedition ?? null });
-      res.json({ ok: true, guildId });
+      const current = await loadOrSeedSnapshot(guildId);
+      const next = applyGameAction(current, req.body);
+      await saveGameState(guildId, next);
+      res.json({ guildId, ...next });
     } catch (err) {
-      console.error('[api] PUT /api/state failed:', err);
-      res.status(500).json({ error: 'Failed to save game state.' });
+      if (err instanceof GameActionError) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+      console.error('[api] POST /api/game/action failed:', err);
+      res.status(500).json({ error: 'Failed to apply game action.' });
     }
   });
 

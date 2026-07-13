@@ -74,7 +74,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
   // Launch the expedition party
   const handleEmbark = () => {
     if (selectedPartyHeroIds.length === 0) return;
-    startExpedition(selectedDungeon, selectedPartyHeroIds);
+    startExpedition(selectedDungeon.id, selectedPartyHeroIds);
     // Reset selection drawer
     setSelectedPartyHeroIds([]);
     setShowEmbarkDrawer(false);

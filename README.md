@@ -77,53 +77,47 @@ npm run portraits:upload -- ./assets/portraits
 
 ## Persistence architecture
 
-Drizzle/postgres must run in Node, never in the browser, so a tiny server-side
-API sits between the React client and PostgreSQL:
+**Game rules run on the server.** The React client sends intents
+(`POST /api/game/action`) such as `buyEquipment` or `executeCombatRound`. The
+server loads the player's snapshot, applies `server/game/engine.ts`, saves, and
+returns the new state. Clients cannot invent gold, loot, or combat outcomes via
+`PUT` anymore (that route was removed).
 
-- **Dev:** `npm run dev` mounts an Express app at `/api/*` **inside the Vite dev
-  server** (see `vite.config.ts` → `gameApiPlugin`). One command, same origin, no
-  CORS.
-- **Prod:** `npm run build` then `npm run serve` runs `server/index.ts`, which
-  serves the built SPA and the same API.
+Drizzle/postgres must run in Node, never in the browser:
+
+- **Dev:** `npm run dev` mounts Express at `/api/*` inside Vite.
+- **Prod:** `npm run build` then `npm run serve`.
 
 ### Layers
 
 | File | Role |
 | --- | --- |
-| `server/repository.ts` | Data-access layer: maps the normalized schema ⇄ `GuildState`/`ExpeditionState`, plus `getOrCreateGuildForUser`. |
+| `server/game/engine.ts` | Authoritative game reducer (`applyGameAction`). |
+| `src/gameActions.ts` | Shared action intent types (client + server). |
+| `server/repository.ts` | Data-access layer: schema ⇄ `GuildState`/`ExpeditionState`. |
 | `server/auth.ts` | Better Auth (email/password) configuration. |
-| `server/api.ts` | Express app: `/api/auth/*` + session-scoped load/save. |
+| `server/api.ts` | Express: auth + `/api/state` + `/api/game/action`. |
 | `server/index.ts` | Standalone production server (SPA + API). |
 | `src/lib/auth-client.ts` | Better Auth React client. |
-| `src/components/AccountScreen.tsx` | Account dashboard (sign in/up, profile, password, delete). |
-| `src/api/client.ts` | Browser fetch client (credentials included; fails soft). |
-| `src/context/GameContext.tsx` | Loads state on startup, debounced save on change, reload on auth. |
+| `src/components/AccountScreen.tsx` | Account dashboard. |
+| `src/api/client.ts` | `fetchGameState` + `dispatchGameAction`. |
+| `src/context/GameContext.tsx` | Thin UI state: dispatches intents, mirrors server snapshot. |
 
 ### API
 
-- `ALL /api/auth/*` → Better Auth (sign-up, sign-in, session, profile, …).
-- `GET /api/state` → `{ guildId, guild, expedition }` for the **signed-in** user
-  (`401` if guest; `guild` is `null` for a brand-new save so the client seeds).
-- `PUT /api/state` → body `{ guild, expedition }` → saves that user's snapshot
-  (`401` if guest; client-supplied guild ids are ignored).
+- `ALL /api/auth/*` → Better Auth.
+- `GET /api/state` → load (or seed) the signed-in user's guild + expedition.
+- `POST /api/game/action` → body: a `GameAction` intent → apply rules, save, return snapshot (`401` if guest).
 - `GET /api/health` → `{ ok, database, r2 }`.
 
-It's a **save-state / load-state pair** rather than per-entity CRUD because the
-client holds the entire campaign in a single React context and mutates many
-parts together.
+You must be signed in to play with persistence — guests see an empty guild until Account → sign in.
 
 ### What is persisted and when
 
-Persisted: guild name/level/gold/upgrades, the full roster + recruit stock,
-inventory + shop stock + equipped gear, owned relics, and the active
-expedition (its full `ExpeditionState` JSON, so a run can resume). Saves are
-**debounced (~800 ms)** on any change to `guild`/`expedition` (covers gold
-changes, purchases, recruiting, expeditions, etc.) and flushed on tab close.
-State loads once on startup.
-
-Entity ids are generated as real UUIDs (`src/utils.ts` → `generateId`) so they
-map directly onto the Postgres `uuid` columns and relationships (equipped item →
-hero, expedition party → roster) round-trip cleanly.
+Persisted: guild name/level/gold/upgrades, roster + recruit stock, inventory +
+shop stock + equipped gear, relics, and the active expedition JSON. The server
+writes after every successful `POST /api/game/action` (and when seeding a new
+account on first `GET /api/state`).
 
 ### Auth (Better Auth)
 

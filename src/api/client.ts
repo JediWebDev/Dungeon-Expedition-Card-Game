@@ -4,35 +4,20 @@
  */
 
 /**
- * Thin fetch client for the game persistence API (served from the same origin
- * by the Vite dev server / standalone Express server — see server/api.ts).
- *
- * All calls fail soft: if the backend, auth session, or database is unavailable
- * the game keeps running from in-memory state and we simply skip persistence.
+ * Browser client for the authoritative game API.
+ * Clients send intents only — never raw gold/inventory snapshots.
  */
 import type { ExpeditionState, GuildState } from '../types';
+import type { GameAction } from '../gameActions';
 
 export interface LoadedGameState {
   guildId: string;
-  guild: GuildState | null;
-  expedition: ExpeditionState | null;
-}
-
-export interface SavePayload {
-  guildId: string | null;
   guild: GuildState;
   expedition: ExpeditionState | null;
 }
 
-/**
- * Requests can hang forever if a stale/other process is bound to the port we
- * fetch from. A short timeout guarantees hydration can always proceed. All
- * requests use same-origin RELATIVE paths (`/api/state`) so they hit whatever
- * port Vite is actually serving (3000, 3001, 3002, …), never a hardcoded port.
- */
 const REQUEST_TIMEOUT_MS = 8000;
 
-/** Fetch with an abort-based timeout so a hung socket can never block startup. */
 async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -40,7 +25,6 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
     return await fetch(input, {
       ...init,
       signal: controller.signal,
-      // Send session cookies so /api/state can resolve the Better Auth user.
       credentials: 'include',
     });
   } finally {
@@ -48,22 +32,17 @@ async function fetchWithTimeout(input: string, init: RequestInit): Promise<Respo
   }
 }
 
-/** Load the persisted game state. Returns null if persistence is unavailable. */
+/** Load the persisted game state. Returns null if unauthenticated / unavailable. */
 export async function fetchGameState(): Promise<LoadedGameState | null> {
   try {
     const res = await fetchWithTimeout('/api/state', {
       headers: { Accept: 'application/json' },
     });
-    if (res.status === 401) {
-      // Not signed in — expected until the player creates an account.
-      return null;
-    }
+    if (res.status === 401) return null;
     if (!res.ok) {
       console.warn(`[persistence] load skipped (HTTP ${res.status}).`);
       return null;
     }
-    // Guard against a wrong process (e.g. a stale server on another port)
-    // answering with HTML instead of our JSON payload.
     const contentType = res.headers.get('content-type') ?? '';
     if (!contentType.includes('application/json')) {
       console.warn('[persistence] load skipped (non-JSON response).');
@@ -76,26 +55,49 @@ export async function fetchGameState(): Promise<LoadedGameState | null> {
   }
 }
 
-/** Persist the game state. Returns the guildId on success, or null on failure. */
-export async function saveGameState(payload: SavePayload): Promise<string | null> {
-  try {
-    const res = await fetchWithTimeout('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (res.status === 401) {
-      // Guest play — skip quietly.
-      return null;
-    }
-    if (!res.ok) {
-      console.warn(`[persistence] save skipped (HTTP ${res.status}).`);
-      return null;
-    }
-    const data = (await res.json()) as { ok: boolean; guildId: string };
-    return data.guildId ?? null;
-  } catch (err) {
-    console.warn('[persistence] save failed.', err);
-    return null;
+export class ActionRequestError extends Error {
+  constructor(
+    message: string,
+    public status: number
+  ) {
+    super(message);
+    this.name = 'ActionRequestError';
   }
+}
+
+/**
+ * Apply a game action on the server. Returns the authoritative snapshot.
+ * Throws ActionRequestError on 4xx/5xx.
+ */
+export async function dispatchGameAction(action: GameAction): Promise<LoadedGameState> {
+  const res = await fetchWithTimeout('/api/game/action', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(action),
+  });
+
+  const contentType = res.headers.get('content-type') ?? '';
+  const payload = contentType.includes('application/json')
+    ? ((await res.json()) as { error?: string } & Partial<LoadedGameState>)
+    : {};
+
+  if (!res.ok) {
+    throw new ActionRequestError(
+      payload.error ?? `Action failed (HTTP ${res.status}).`,
+      res.status
+    );
+  }
+
+  if (!payload.guild || !payload.guildId) {
+    throw new ActionRequestError('Malformed action response.', 500);
+  }
+
+  return {
+    guildId: payload.guildId,
+    guild: payload.guild,
+    expedition: payload.expedition ?? null,
+  };
 }

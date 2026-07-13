@@ -661,7 +661,7 @@ export const DungeonRunner: React.FC = () => {
                                 </span>
                                 <button
                                   disabled={!canAfford}
-                                  onClick={() => buyMerchantItem(item)}
+                                  onClick={() => buyMerchantItem(item.id)}
                                   className={`py-1 px-3 rounded-sm text-[9px] font-bold uppercase tracking-wider transition border cursor-pointer ${
                                     canAfford
                                       ? 'bg-amber-900/20 text-amber-500 border-amber-900/60 hover:bg-amber-900/40'
@@ -794,7 +794,7 @@ export const DungeonRunner: React.FC = () => {
                                 <button
                                   key={i}
                                   disabled={!allowed}
-                                  onClick={() => makeEventChoice(choice)}
+                                  onClick={() => makeEventChoice(i)}
                                   className={`w-full text-left p-3.5 rounded-sm border transition-all text-xs flex flex-col justify-between cursor-pointer ${
                                     allowed
                                       ? 'bg-stone-900/60 border-stone-850 hover:border-purple-600 hover:bg-stone-900'

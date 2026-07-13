@@ -20,6 +20,7 @@ function DashboardContent() {
     renameGuild,
     hydrated,
     reloadPersistedState,
+    lastActionError,
   } = useGame();
   const { data: session } = useSession();
   const [isEditingName, setIsEditingName] = useState(false);
@@ -139,6 +140,12 @@ function DashboardContent() {
           </div>
         </div>
       </header>
+
+      {lastActionError && (
+        <div className="bg-red-950/80 border-b border-red-900 px-4 py-2 text-center text-xs font-sans text-red-300 relative z-20">
+          {lastActionError}
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 relative z-10">
         <nav className="w-full md:w-56 bg-stone-950 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
