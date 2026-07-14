@@ -6,10 +6,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { Portrait } from './Portrait';
+import { CombatPanel } from './combat/CombatPanel';
 import { getModifiedStats } from '../utils';
 import { DungeonRoom, Hero, Monster, Equipment } from '../types';
 import {
-  Shield,
   Heart,
   Swords,
   ChevronRight,
@@ -18,11 +18,6 @@ import {
   ShoppingBag,
   HelpCircle,
   AlertTriangle,
-  Home,
-  ShieldCheck,
-  Zap,
-  CheckCircle,
-  Coins,
   ArrowRight,
   BookOpen
 } from 'lucide-react';
@@ -45,7 +40,6 @@ export const DungeonRunner: React.FC = () => {
     actionPending,
   } = useGame();
 
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Derived values used by hooks — must stay above any early returns so hook
@@ -63,18 +57,6 @@ export const DungeonRunner: React.FC = () => {
   const activeRoomChoiceMade = expedition?.activeRoomChoiceMade ?? false;
   const combat = expedition?.combat ?? null;
   const combatMode = combat?.mode ?? 'manual';
-  const awaitingInput = Boolean(combat?.awaitingInput);
-  const activeTurnEntry = combat?.turnQueue[combat.turnIndex] ?? null;
-  const activeHero =
-    activeTurnEntry?.side === 'hero'
-      ? party.find((h) => h.id === activeTurnEntry.id) ?? null
-      : null;
-
-  const pickDefaultAllyId = (): string | null => {
-    const allies = party.filter((h) => h.hp > 0);
-    if (allies.length === 0) return null;
-    return [...allies].sort((a, b) => a.hp - b.hp)[0]?.id ?? null;
-  };
 
   // Auto-scrolling battle logs
   useEffect(() => {
@@ -112,11 +94,6 @@ export const DungeonRunner: React.FC = () => {
     advanceCombat,
     actionPending,
   ]);
-
-  // Clear selected target when turn changes
-  useEffect(() => {
-    setSelectedTargetId(null);
-  }, [combat?.turnIndex, combat?.round]);
 
   // Active room pointers
   if (!expedition) {
@@ -472,248 +449,9 @@ export const DungeonRunner: React.FC = () => {
                 {(activeRoom!.type === 'Monster' ||
                   activeRoom!.type === 'Elite Monster' ||
                   activeRoom!.type === 'Boss') && (
-                  <div className="flex-1 flex flex-col justify-between">
-                    {/* Battle Field visualization */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-4 flex-1">
-                      {/* Left: Heroes party block */}
-                      <div className="flex -space-x-3 sm:space-x-0 sm:flex-col gap-1.5 sm:gap-2">
-                        {party
-                           .filter((h) => h.hp > 0)
-                           .map((h) => {
-                             const isActive = activeTurnEntry?.side === 'hero' && activeTurnEntry.id === h.id;
-                             const isAllyTarget = selectedTargetId === h.id;
-                             const canSelectAlly =
-                               awaitingInput &&
-                               activeHero?.heroClass === 'Cleric' &&
-                               h.id !== activeHero.id;
-                             return (
-                             <button
-                               type="button"
-                               key={h.id}
-                               disabled={!canSelectAlly}
-                               onClick={() => canSelectAlly && setSelectedTargetId(h.id)}
-                               className={`relative group shrink-0 rounded-sm transition ${
-                                 isActive
-                                   ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-stone-950'
-                                   : isAllyTarget
-                                     ? 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-stone-950'
-                                     : ''
-                               } ${canSelectAlly ? 'cursor-pointer' : 'cursor-default'}`}
-                               title={h.name}
-                             >
-                               <Portrait
-                                 heroClass={heroClassMap(h.heroClass)}
-                                 portraitSeed={h.portraitSeed}
-                                 size="md"
-                               />
-                               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-stone-950 text-[8px] font-mono font-bold px-1 rounded-sm border border-stone-850 text-stone-300">
-                                 {h.hp}HP
-                               </div>
-                             </button>
-                           );})}
-                      </div>
-
-                      {/* Middle: Versus + mode + commands */}
-                      <div className="text-center font-sans flex flex-col items-center gap-2 min-w-[200px]">
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-stone-500 block">
-                          Round {combat?.round ?? expedition.combatRound}
-                        </span>
-                        <div className="text-xl font-black italic text-red-500 py-1.5 px-4 bg-stone-950 border border-stone-800 rounded-sm tracking-widest">
-                          VS
-                        </div>
-                        {activeHero && (
-                          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
-                            {activeHero.name}&apos;s turn
-                          </p>
-                        )}
-                        {activeTurnEntry?.side === 'monster' && combatMode === 'manual' && (
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">
-                            Enemy acting…
-                          </p>
-                        )}
-
-                        {!expedition.activeRoomChoiceMade && (
-                          <div className="flex gap-1.5 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => setCombatMode('manual')}
-                              className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
-                                combatMode === 'manual'
-                                  ? 'bg-amber-900/30 text-amber-400 border-amber-800'
-                                  : 'bg-stone-950 text-stone-500 border-stone-800 hover:text-stone-300'
-                              }`}
-                            >
-                              Manual
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCombatMode('auto')}
-                              className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
-                                combatMode === 'auto'
-                                  ? 'bg-cyan-900/30 text-cyan-400 border-cyan-800'
-                                  : 'bg-stone-950 text-stone-500 border-stone-800 hover:text-stone-300'
-                              }`}
-                            >
-                              Auto
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right: Monsters party block */}
-                      <div className="flex -space-x-3 sm:space-x-0 sm:flex-col gap-1.5 sm:gap-2">
-                        {activeRoom!.monsterGroup && activeRoom!.monsterGroup.length > 0 ? (
-                          activeRoom!.monsterGroup.map((monster) => {
-                            const isMDead = monster.hp <= 0;
-                            const mHpPct = isMDead ? 0 : (monster.hp / monster.maxHp) * 100;
-                            const isActive =
-                              activeTurnEntry?.side === 'monster' && activeTurnEntry.id === monster.id;
-                            const isTarget = selectedTargetId === monster.id;
-                            return (
-                              <button
-                                type="button"
-                                key={monster.id || monster.name}
-                                disabled={isMDead || !awaitingInput}
-                                onClick={() => !isMDead && setSelectedTargetId(monster.id)}
-                                className={`flex items-center gap-2 bg-stone-900/60 p-2 rounded-sm border w-[150px] shrink-0 font-sans text-left transition ${
-                                  isMDead
-                                    ? 'opacity-30 line-through border-stone-850'
-                                    : isTarget
-                                      ? 'border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
-                                      : isActive
-                                        ? 'border-red-600'
-                                        : 'border-stone-850 hover:border-stone-600 cursor-pointer'
-                                }`}
-                              >
-                                <Portrait
-                                  monsterType={monster.name}
-                                  avatarSeed={monster.avatarSeed}
-                                  size="sm"
-                                  isDead={isMDead}
-                                />
-                                <div className="flex-1 min-w-0 text-left">
-                                  <h5 className="text-[10px] font-bold text-stone-200 truncate uppercase">
-                                    {monster.name}
-                                  </h5>
-                                  <div className="h-1 bg-stone-950 rounded-full mt-1 overflow-hidden">
-                                    <div
-                                      className="h-full bg-red-600 rounded-full transition-all duration-300"
-                                      style={{ width: `${mHpPct}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-[8px] text-stone-400 font-mono mt-0.5 block text-right font-bold">
-                                    {isMDead ? 0 : monster.hp}HP
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <span className="text-stone-500 text-xs italic font-sans">All clear!</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Manual command bar */}
-                    {!expedition.activeRoomChoiceMade && awaitingInput && activeHero && (
-                      <div className="mt-3 pt-3 border-t border-stone-800 space-y-2 font-sans">
-                        <p className="text-[10px] text-stone-400 uppercase tracking-wider font-bold">
-                          Command {activeHero.name}
-                          {selectedTargetId
-                            ? ` → ${
-                                activeRoom!.monsterGroup?.find((m) => m.id === selectedTargetId)?.name ??
-                                party.find((h) => h.id === selectedTargetId)?.name ??
-                                'target'
-                              }`
-                            : ' (select a foe for Attack / Skill)'}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(
-                            [
-                              ['attack', 'Attack', Swords],
-                              ['skill', 'Skill', Zap],
-                              ['spell', 'Spell', Sparkles],
-                              ['item', 'Item', Heart],
-                              ['defend', 'Defend', ShieldCheck],
-                            ] as const
-                          ).map(([action, label, Icon]) => {
-                            const needsEnemy =
-                              action === 'attack' ||
-                              action === 'skill' ||
-                              (action === 'spell' && activeHero.heroClass !== 'Cleric' && activeHero.heroClass !== 'Mage');
-                            const needsAlly =
-                              action === 'spell' && activeHero.heroClass === 'Cleric';
-                            const enemySelected = Boolean(
-                              selectedTargetId &&
-                                activeRoom!.monsterGroup?.some((m) => m.id === selectedTargetId)
-                            );
-                            const allySelected = Boolean(
-                              selectedTargetId && party.some((h) => h.id === selectedTargetId && h.hp > 0)
-                            );
-                            const disabled =
-                              actionPending ||
-                              (needsEnemy && !enemySelected) ||
-                              (needsAlly && !allySelected && !pickDefaultAllyId()) ||
-                              (action === 'item' &&
-                                (combat?.itemUsesRemaining[activeHero.id] ?? 0) <= 0);
-                            return (
-                              <button
-                                key={action}
-                                type="button"
-                                disabled={disabled}
-                                onClick={() => {
-                                  let targetId: string | undefined;
-                                  if (needsEnemy) targetId = selectedTargetId ?? undefined;
-                                  else if (needsAlly)
-                                    targetId = allySelected
-                                      ? selectedTargetId!
-                                      : pickDefaultAllyId() ?? undefined;
-                                  else if (action === 'spell' && activeHero.heroClass === 'Mage')
-                                    targetId = undefined;
-                                  submitCombatAction(action, targetId);
-                                }}
-                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-[10px] font-bold uppercase tracking-wider border transition ${
-                                  disabled
-                                    ? 'bg-stone-950 text-stone-600 border-stone-850 cursor-not-allowed'
-                                    : 'bg-stone-900 text-stone-200 border-stone-700 hover:border-amber-600 hover:text-amber-400 cursor-pointer'
-                                }`}
-                              >
-                                <Icon size={12} /> {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {!expedition.activeRoomChoiceMade &&
-                      combatMode === 'manual' &&
-                      !awaitingInput &&
-                      !actionPending && (
-                        <div className="mt-2 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => advanceCombat()}
-                            className="text-[10px] uppercase tracking-wider font-bold text-stone-400 hover:text-amber-400 border border-stone-800 px-3 py-1.5 rounded-sm cursor-pointer"
-                          >
-                            Advance enemy turn
-                          </button>
-                        </div>
-                      )}
-
-                    {/* Proceed Action bounds */}
-                    {expedition.activeRoomChoiceMade && (
-                      <div className="pt-4 mt-4 border-t border-stone-800 flex justify-end font-sans">
-                        <button
-                          onClick={proceedToNextRoom}
-                          className="bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition flex items-center gap-2 active:scale-95 shadow-md cursor-pointer"
-                        >
-                          Chamber Secured: Proceed <ArrowRight size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <CombatPanel expedition={expedition} guild={guild} activeRoom={activeRoom!} />
                 )}
+
 
                 {/* 2. ROOM TYPE: TREASURE */}
                 {activeRoom!.type === 'Treasure' && (
@@ -1029,8 +767,3 @@ export const DungeonRunner: React.FC = () => {
     </div>
   );
 };
-
-// Map classes safely to string helpers for our Portrait SVG drawer
-function heroClassMap(cls: Hero['heroClass']): any {
-  return cls;
-}
