@@ -27,6 +27,11 @@ interface CharacterCardProps {
   data: CharacterCardData;
   /** Fired when an equipment slot is clicked (only interactive if provided). */
   onSlotClick?: (slot: EquipmentSlotKey) => void;
+  /**
+   * Restrict which slots are clickable. When omitted, all slots are interactive
+   * (given `onSlotClick`). Useful when only some slots are backed by real gear.
+   */
+  interactiveSlots?: EquipmentSlotKey[];
   className?: string;
 }
 
@@ -56,7 +61,12 @@ const STAT_ROW_Y = [704, 742];
  * The portrait fills the body and therefore reads *behind* the slot boxes, which
  * re-draw themselves from the same PNG so the baked slot art stays intact.
  */
-export const CharacterCard: React.FC<CharacterCardProps> = ({ data, onSlotClick, className = '' }) => {
+export const CharacterCard: React.FC<CharacterCardProps> = ({
+  data,
+  onSlotClick,
+  interactiveSlots,
+  className = '',
+}) => {
   const {
     name,
     className: heroClassName,
@@ -133,17 +143,21 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ data, onSlotClick,
       </div>
 
       {/* Layer 2 — equipment slots (re-drawn from the PNG, above the portrait). */}
-      {SLOT_PLACEMENTS.map((slot) => (
-        <EquipmentSlot
-          key={slot.key}
-          label={slot.label}
-          x={slot.x}
-          y={slot.y}
-          spriteUrl={containerArt}
-          item={equipment[slot.key] ?? null}
-          onClick={onSlotClick ? () => onSlotClick(slot.key) : undefined}
-        />
-      ))}
+      {SLOT_PLACEMENTS.map((slot) => {
+        const isInteractive =
+          Boolean(onSlotClick) && (!interactiveSlots || interactiveSlots.includes(slot.key));
+        return (
+          <EquipmentSlot
+            key={slot.key}
+            label={slot.label}
+            x={slot.x}
+            y={slot.y}
+            spriteUrl={containerArt}
+            item={equipment[slot.key] ?? null}
+            onClick={isInteractive ? () => onSlotClick!(slot.key) : undefined}
+          />
+        );
+      })}
 
       {/* Layer 3 — HUD text overlays. */}
       {/* Title */}

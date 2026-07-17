@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { HeroCard } from './HeroCard';
+import { RosterCharacterCard } from './character/RosterCharacterCard';
 import { Portrait } from './Portrait';
 import { getModifiedStats } from '../utils';
 import { DUNGEON_TEMPLATES } from '../data';
@@ -139,7 +139,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pr-1 flex-1 pb-8">
               {guild.roster.map((hero) => (
-                <HeroCard
+                <RosterCharacterCard
                   key={hero.id}
                   hero={hero}
                   healerStation={guild.upgrades.healerStation}
