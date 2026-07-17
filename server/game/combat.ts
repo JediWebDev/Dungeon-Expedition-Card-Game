@@ -212,7 +212,8 @@ function applyHeroAttack(
   const stats = getModifiedStats(attacker, relics);
   const crit = Math.random() * 100 < stats.luck;
   const variance = 0.85 + Math.random() * 0.3;
-  const raw = Math.round(stats.attack * variance * mult * (crit ? 1.75 : 1));
+  const power = style === 'spell' ? Math.max(stats.magic, 1) : stats.attack;
+  const raw = Math.round(power * variance * mult * (crit ? 1.75 : 1));
   const dmg = Math.max(2, raw - monsterDefense(target, combat));
   const nextHp = Math.max(0, target.hp - dmg);
   const verb =
@@ -301,7 +302,7 @@ function resolveHeroAction(
       const ally = party.find((h) => h.id === allyId)!;
       const stats = getModifiedStats(hero, relics);
       const allyStats = getModifiedStats(ally, relics);
-      const heal = Math.round(stats.attack * 1.1 + 12);
+      const heal = Math.round(stats.magic * 1.1 + 12);
       party = party.map((h) =>
         h.id === allyId ? { ...h, hp: Math.min(allyStats.maxHp, h.hp + heal) } : h
       );

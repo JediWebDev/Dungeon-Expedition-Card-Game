@@ -3,28 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Equipment, Hero, HeroClass, Relic } from '../../types';
+import {
+  Equipment,
+  EquipSlot,
+  EQUIP_SLOTS,
+  EQUIP_SLOT_LABELS,
+  emptyHeroEquipment,
+  Hero,
+  HeroClass,
+  Relic,
+  normalizeEquipSlot,
+} from '../../types';
 import { getModifiedStats } from '../../utils';
 
-/**
- * Paperdoll slot keys, matching the equipment boxes baked into
- * `character_hud_container.png` (6 left, 6 right, 2 bottom-center).
- */
-export type EquipmentSlotKey =
-  | 'head'
-  | 'neck'
-  | 'shoulders'
-  | 'chest'
-  | 'back'
-  | 'wrists'
-  | 'hands'
-  | 'waist'
-  | 'legs'
-  | 'feet'
-  | 'trinket'
-  | 'ring'
-  | 'mainHand'
-  | 'offHand';
+/** Re-export paperdoll keys for UI consumers. */
+export type EquipmentSlotKey = EquipSlot;
+export { EQUIP_SLOT_LABELS };
 
 export type EquipmentRarity = Equipment['rarity'];
 
@@ -74,14 +68,39 @@ function toSlot(item: Equipment | null | undefined): EquipmentSlotData | null {
   return item ? { name: item.name, rarity: item.rarity } : null;
 }
 
+/** Ensure a hero equipment bag has every paperdoll slot (migrates legacy saves). */
+export function normalizeHeroEquipment(raw: unknown): Hero['equipment'] {
+  const bag = emptyHeroEquipment();
+  if (!raw || typeof raw !== 'object') return bag;
+  const src = raw as Record<string, Equipment | null | undefined>;
+
+  // Legacy 3-slot bag
+  if ('weapon' in src || 'armor' in src || 'accessory' in src) {
+    if (src.weapon) bag.mainHand = { ...src.weapon, type: 'mainHand' };
+    if (src.armor) bag.chest = { ...src.armor, type: 'chest' };
+    if (src.accessory) bag.ring = { ...src.accessory, type: 'ring' };
+  }
+
+  for (const slot of EQUIP_SLOTS) {
+    const item = src[slot];
+    if (item) bag[slot] = { ...item, type: normalizeEquipSlot(item.type ?? slot) };
+  }
+  return bag;
+}
+
 /**
- * Adapt an in-game {@link Hero} into {@link CharacterCardData}. The current game
- * model only has weapon/armor/accessory and no mana/magic/resist, so those slots
- * and stats default to empty/zero while keeping the full mockup layout intact.
+ * Adapt an in-game {@link Hero} into {@link CharacterCardData}.
  */
 export function heroToCharacterCardData(hero: Hero, relics: Relic[] = []): CharacterCardData {
-  const mod = getModifiedStats(hero, relics);
+  const equipment = normalizeHeroEquipment(hero.equipment);
+  const normalized: Hero = { ...hero, equipment };
+  const mod = getModifiedStats(normalized, relics);
   const isDead = hero.status === 'Dead';
+
+  const equipmentView: CharacterCardData['equipment'] = {};
+  for (const slot of EQUIP_SLOTS) {
+    equipmentView[slot] = toSlot(equipment[slot]);
+  }
 
   return {
     name: hero.name,
@@ -94,23 +113,21 @@ export function heroToCharacterCardData(hero: Hero, relics: Relic[] = []): Chara
     expNeeded: hero.expNeeded,
     stats: {
       attack: mod.attack,
-      magic: 0,
+      magic: mod.magic,
       speed: mod.speed,
       defense: mod.defense,
-      resist: 0,
+      resist: mod.resist,
       luck: mod.luck,
     },
     bonuses: {
       attack: mod.attack - hero.attack,
+      magic: mod.magic - (hero.magic ?? 0),
       speed: mod.speed - hero.speed,
       defense: mod.defense - hero.defense,
+      resist: mod.resist - (hero.resist ?? 0),
       luck: mod.luck - hero.luck,
     },
-    equipment: {
-      mainHand: toSlot(hero.equipment.weapon),
-      chest: toSlot(hero.equipment.armor),
-      ring: toSlot(hero.equipment.accessory),
-    },
+    equipment: equipmentView,
     portrait: {
       heroClass: hero.heroClass,
       portraitSeed: hero.portraitSeed,

@@ -5,20 +5,106 @@
 
 export type HeroClass = 'Warrior' | 'Rogue' | 'Mage' | 'Cleric';
 
+/** Paperdoll slots — matches CharacterCard equipment boxes. */
+export type EquipSlot =
+  | 'head'
+  | 'neck'
+  | 'shoulders'
+  | 'chest'
+  | 'back'
+  | 'wrists'
+  | 'hands'
+  | 'waist'
+  | 'legs'
+  | 'feet'
+  | 'trinket'
+  | 'ring'
+  | 'mainHand'
+  | 'offHand';
+
+export const EQUIP_SLOTS: EquipSlot[] = [
+  'head',
+  'neck',
+  'shoulders',
+  'chest',
+  'back',
+  'wrists',
+  'hands',
+  'waist',
+  'legs',
+  'feet',
+  'trinket',
+  'ring',
+  'mainHand',
+  'offHand',
+];
+
+export const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
+  head: 'Head',
+  neck: 'Amulet',
+  shoulders: 'Shoulders',
+  chest: 'Chest',
+  back: 'Cloak',
+  wrists: 'Bracers',
+  hands: 'Gloves',
+  waist: 'Belt',
+  legs: 'Legs',
+  feet: 'Boots',
+  trinket: 'Trinket',
+  ring: 'Ring',
+  mainHand: 'Weapon',
+  offHand: 'Off-hand',
+};
+
+export interface EquipmentModifiers {
+  maxHp?: number;
+  attack?: number;
+  magic?: number;
+  defense?: number;
+  resist?: number;
+  speed?: number;
+  luck?: number;
+}
+
 export interface Equipment {
   id: string;
   name: string;
-  type: 'weapon' | 'armor' | 'accessory';
+  /** Slot this item equips into (1:1 with the paperdoll). */
+  type: EquipSlot;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  modifiers: {
-    maxHp?: number;
-    attack?: number;
-    defense?: number;
-    speed?: number;
-    luck?: number;
-  };
+  modifiers: EquipmentModifiers;
   price: number;
   description: string;
+}
+
+export type HeroEquipment = Record<EquipSlot, Equipment | null>;
+
+export function emptyHeroEquipment(): HeroEquipment {
+  return {
+    head: null,
+    neck: null,
+    shoulders: null,
+    chest: null,
+    back: null,
+    wrists: null,
+    hands: null,
+    waist: null,
+    legs: null,
+    feet: null,
+    trinket: null,
+    ring: null,
+    mainHand: null,
+    offHand: null,
+  };
+}
+
+/** Map legacy 3-slot names from older saves onto the paperdoll. */
+export function normalizeEquipSlot(slot: string): EquipSlot {
+  if (slot === 'weapon') return 'mainHand';
+  if (slot === 'armor') return 'chest';
+  if (slot === 'accessory') return 'ring';
+  if ((EQUIP_SLOTS as string[]).includes(slot)) return slot as EquipSlot;
+  return 'trinket';
 }
 
 export interface Hero {
@@ -31,18 +117,16 @@ export interface Hero {
   maxHp: number;
   hp: number;
   attack: number;
+  magic: number;
   defense: number;
+  resist: number;
   speed: number;
   luck: number;
   morale: number; // 0 to 100
   status: 'Idle' | 'Expedition' | 'Dead';
   /** Epoch ms when the hero fell; used by Sanctuary auto-revive. Null when not dead. */
   diedAt: number | null;
-  equipment: {
-    weapon: Equipment | null;
-    armor: Equipment | null;
-    accessory: Equipment | null;
-  };
+  equipment: HeroEquipment;
   portraitSeed: string; // R2 variant key under portraits/heroes/{class}/; SVG fallback if missing
   flavorText: string;
   traits: string[]; // e.g. ["Brave", "Clumsy", "Lucky"]

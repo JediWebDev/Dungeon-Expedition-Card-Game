@@ -62,22 +62,24 @@ export const FLAVOR_TEXTS: Record<HeroClass, string[]> = {
 export const CLASS_BASE_STATS: Record<HeroClass, {
   maxHp: number;
   attack: number;
+  magic: number;
   defense: number;
+  resist: number;
   speed: number;
   luck: number;
 }> = {
-  Warrior: { maxHp: 120, attack: 14, defense: 10, speed: 6, luck: 4 },
-  Rogue: { maxHp: 90, attack: 18, defense: 5, speed: 12, luck: 10 },
-  Mage: { maxHp: 80, attack: 22, defense: 3, speed: 8, luck: 6 },
-  Cleric: { maxHp: 105, attack: 12, defense: 8, speed: 7, luck: 7 }
+  Warrior: { maxHp: 120, attack: 14, magic: 4, defense: 10, resist: 6, speed: 6, luck: 4 },
+  Rogue: { maxHp: 90, attack: 18, magic: 5, defense: 5, resist: 4, speed: 12, luck: 10 },
+  Mage: { maxHp: 80, attack: 10, magic: 20, defense: 3, resist: 10, speed: 8, luck: 6 },
+  Cleric: { maxHp: 105, attack: 12, magic: 14, defense: 8, resist: 12, speed: 7, luck: 7 }
 };
 
-// Equipment Catalog
+// Equipment Catalog — one item type per paperdoll slot
 export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
-  // Weapons
+  // --- Main hand ---
   {
     name: 'Rusty Training Sword',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'common',
     modifiers: { attack: 2 },
     price: 30,
@@ -85,7 +87,7 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Iron Broadsword',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'common',
     modifiers: { attack: 5, speed: -1 },
     price: 80,
@@ -93,39 +95,39 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Assassin Dagger',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'rare',
     modifiers: { attack: 8, speed: 2, luck: 3 },
     price: 250,
-    description: 'Lightweight dagger with an serrated edge, perfect for critical vital strikes.'
+    description: 'Lightweight dagger with a serrated edge, perfect for vital strikes.'
   },
   {
     name: 'Wizard Elm Staff',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'common',
-    modifiers: { attack: 4, luck: 1 },
+    modifiers: { magic: 6, luck: 1 },
     price: 75,
-    description: 'Channeled wood that resonates slightly with ambient magical fields.'
+    description: 'Channeled wood that resonates with ambient magical fields.'
   },
   {
     name: 'Spire Spellbook',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'rare',
-    modifiers: { attack: 10, maxHp: 10 },
+    modifiers: { magic: 12, maxHp: 10 },
     price: 280,
     description: 'Contains glowing runes that incinerate targets at a safe distance.'
   },
   {
     name: 'Dawnbringer Mace',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'rare',
-    modifiers: { attack: 7, defense: 2, luck: 2 },
+    modifiers: { attack: 7, magic: 4, defense: 2 },
     price: 240,
     description: 'An elegant mace consecrated in high temples. Glows in the dark.'
   },
   {
     name: 'Excalibur Replica',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'epic',
     modifiers: { attack: 14, defense: 4, speed: 1 },
     price: 600,
@@ -133,7 +135,7 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Death Weaver Bow',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'epic',
     modifiers: { attack: 16, speed: 4 },
     price: 620,
@@ -141,17 +143,121 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Ragnarok Greatsword',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'legendary',
     modifiers: { attack: 28, defense: -4, speed: -2, luck: 5 },
     price: 1200,
-    description: 'An ancient colossal blade said to have severed a giant\'s mountain fortress.'
+    description: "An ancient colossal blade said to have severed a giant's mountain fortress."
   },
 
-  // Armors
+  // --- Off-hand ---
+  {
+    name: 'Buckler of Oak',
+    type: 'offHand',
+    rarity: 'common',
+    modifiers: { defense: 3 },
+    price: 45,
+    description: 'A round wooden shield. Better than nothing when blades whistle past.'
+  },
+  {
+    name: 'Iron Kite Shield',
+    type: 'offHand',
+    rarity: 'rare',
+    modifiers: { defense: 7, resist: 2 },
+    price: 220,
+    description: 'Tall steel faceplate that shrugs off arrows and glancing blows.'
+  },
+  {
+    name: 'Spellward Focus',
+    type: 'offHand',
+    rarity: 'epic',
+    modifiers: { magic: 8, resist: 6 },
+    price: 580,
+    description: 'A crystalline orb that steadies the caster and turns aside hostile magic.'
+  },
+  {
+    name: 'Aegis of Dawn',
+    type: 'offHand',
+    rarity: 'legendary',
+    modifiers: { defense: 14, resist: 10, maxHp: 20 },
+    price: 1100,
+    description: 'Sacred tower shield that radiates a soft protective light.'
+  },
+
+  // --- Head ---
+  {
+    name: 'Leather Cap',
+    type: 'head',
+    rarity: 'common',
+    modifiers: { defense: 1 },
+    price: 35,
+    description: 'Simple hide cap. Keeps rain and light cuts off your scalp.'
+  },
+  {
+    name: 'Iron Sallet',
+    type: 'head',
+    rarity: 'rare',
+    modifiers: { defense: 5, resist: 1 },
+    price: 200,
+    description: 'Visored steel helm favored by borderland militia.'
+  },
+  {
+    name: 'Circlet of Clarity',
+    type: 'head',
+    rarity: 'epic',
+    modifiers: { magic: 8, luck: 2 },
+    price: 540,
+    description: 'Silver band etched with focusing runes that sharpen the mind.'
+  },
+
+  // --- Neck ---
+  {
+    name: 'Copper Charm',
+    type: 'neck',
+    rarity: 'common',
+    modifiers: { luck: 1 },
+    price: 40,
+    description: 'A cheap charm sold at roadside shrines.'
+  },
+  {
+    name: 'Ruby Amulet',
+    type: 'neck',
+    rarity: 'rare',
+    modifiers: { maxHp: 25, attack: 2 },
+    price: 220,
+    description: "A deep crimson crystal that pulsates to the wearer's heartbeat."
+  },
+  {
+    name: 'Vampire Fang Pendant',
+    type: 'neck',
+    rarity: 'epic',
+    modifiers: { attack: 6, speed: 2, maxHp: -10 },
+    price: 550,
+    description: 'Steals life energy from surroundings. Increases damage but shortens health limits.'
+  },
+
+  // --- Shoulders ---
+  {
+    name: 'Padded Spaulders',
+    type: 'shoulders',
+    rarity: 'common',
+    modifiers: { defense: 2 },
+    price: 50,
+    description: 'Quilted cloth pads for the shoulders. Light and warm.'
+  },
+  {
+    name: 'Pauldrons of the Watch',
+    type: 'shoulders',
+    rarity: 'rare',
+    modifiers: { defense: 5, resist: 2 },
+    price: 260,
+    description: 'Polished plates stamped with the guild watch sigil.'
+  },
+
+  // --- Chest ---
   {
     name: 'Worn Leather Vest',
-    type: 'armor',
+    type: 'chest',
     rarity: 'common',
     modifiers: { defense: 2, speed: 1 },
     price: 40,
@@ -159,7 +265,7 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Reinforced Mail Shirt',
-    type: 'armor',
+    type: 'chest',
     rarity: 'common',
     modifiers: { defense: 5 },
     price: 110,
@@ -167,7 +273,7 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Guild Knight Plate',
-    type: 'armor',
+    type: 'chest',
     rarity: 'rare',
     modifiers: { defense: 9, speed: -2, maxHp: 20 },
     price: 320,
@@ -175,23 +281,15 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Satin Mage Robes',
-    type: 'armor',
+    type: 'chest',
     rarity: 'common',
-    modifiers: { defense: 1, speed: 2, luck: 2 },
+    modifiers: { defense: 1, magic: 4, speed: 2 },
     price: 85,
     description: 'Silky blue cloth. Zero physical defense, but highly comfortable.'
   },
   {
-    name: 'Astral Cloak',
-    type: 'armor',
-    rarity: 'rare',
-    modifiers: { defense: 4, speed: 4, luck: 4 },
-    price: 310,
-    description: 'Woven with dark matter. Partially displaces the wearer into the spirit realm.'
-  },
-  {
     name: 'Aegis Sentinel Carapace',
-    type: 'armor',
+    type: 'chest',
     rarity: 'epic',
     modifiers: { defense: 15, maxHp: 40, speed: -3 },
     price: 650,
@@ -199,61 +297,163 @@ export const EQUIPMENT_CATALOG: Omit<Equipment, 'id'>[] = [
   },
   {
     name: 'Dragon Scale Hauberk',
-    type: 'armor',
+    type: 'chest',
     rarity: 'legendary',
-    modifiers: { defense: 22, maxHp: 60, speed: 1, luck: 5 },
+    modifiers: { defense: 22, resist: 8, maxHp: 60, speed: 1, luck: 5 },
     price: 1350,
     description: 'Imbued with the lifeblood of a red dragon. Highly fireproof and indestructible.'
   },
 
-  // Accessories
+  // --- Back ---
   {
-    name: 'Copper Ring of Luck',
-    type: 'accessory',
+    name: 'Travel Cloak',
+    type: 'back',
     rarity: 'common',
-    modifiers: { luck: 2 },
-    price: 45,
-    description: 'Turns your finger green, but gives you a warmer fuzzy feeling inside.'
+    modifiers: { resist: 1, speed: 1 },
+    price: 40,
+    description: 'Wool cloak that keeps wind and light hexes at bay.'
   },
   {
+    name: 'Astral Cloak',
+    type: 'back',
+    rarity: 'rare',
+    modifiers: { defense: 2, resist: 5, speed: 3, luck: 2 },
+    price: 310,
+    description: 'Woven with dark matter. Partially displaces the wearer into the spirit realm.'
+  },
+
+  // --- Wrists ---
+  {
+    name: 'Leather Bracers',
+    type: 'wrists',
+    rarity: 'common',
+    modifiers: { defense: 1 },
+    price: 30,
+    description: 'Stiff leather wraps that protect the forearms.'
+  },
+  {
+    name: 'Runed Bracers',
+    type: 'wrists',
+    rarity: 'rare',
+    modifiers: { magic: 4, resist: 3 },
+    price: 210,
+    description: 'Iron cuffs etched with warding sigils.'
+  },
+
+  // --- Hands ---
+  {
+    name: 'Work Gloves',
+    type: 'hands',
+    rarity: 'common',
+    modifiers: { attack: 1 },
+    price: 25,
+    description: 'Thick gloves for gripping steel without blisters.'
+  },
+  {
+    name: 'Gauntlets of Grip',
+    type: 'hands',
+    rarity: 'rare',
+    modifiers: { attack: 4, defense: 2 },
+    price: 230,
+    description: 'Fingered plate gloves that never slip on a hilt.'
+  },
+
+  // --- Waist ---
+  {
+    name: 'Utility Belt',
+    type: 'waist',
+    rarity: 'common',
+    modifiers: { luck: 1, speed: 1 },
+    price: 35,
+    description: 'Plenty of pouches for potions, chalk, and dungeon dust.'
+  },
+  {
+    name: 'Girdle of Fortitude',
+    type: 'waist',
+    rarity: 'epic',
+    modifiers: { maxHp: 30, defense: 4 },
+    price: 520,
+    description: 'Broad belt that steadies the core and hardens the gut.'
+  },
+
+  // --- Legs ---
+  {
+    name: 'Canvas Trousers',
+    type: 'legs',
+    rarity: 'common',
+    modifiers: { defense: 1, speed: 1 },
+    price: 35,
+    description: 'Practical dungeon pants with reinforced knees.'
+  },
+  {
+    name: 'Plate Greaves',
+    type: 'legs',
+    rarity: 'rare',
+    modifiers: { defense: 6, speed: -1 },
+    price: 240,
+    description: 'Articulated steel plates covering thighs and shins.'
+  },
+
+  // --- Feet ---
+  {
     name: 'Speedy Running Boots',
-    type: 'accessory',
+    type: 'feet',
     rarity: 'common',
     modifiers: { speed: 3 },
     price: 60,
     description: 'Fitted with soft rabbit leather on the soles. Quiet and swift.'
   },
   {
-    name: 'Ruby Amulet',
-    type: 'accessory',
+    name: 'Iron Sabatons',
+    type: 'feet',
     rarity: 'rare',
-    modifiers: { maxHp: 25, attack: 2 },
-    price: 220,
-    description: 'A deep crimson crystal that pulsates to the wearer\'s heartbeat.'
+    modifiers: { defense: 4, resist: 1 },
+    price: 200,
+    description: 'Heavy metal boots that plant you firmly against charges.'
   },
+
+  // --- Trinket ---
   {
     name: 'Jade Clover Pin',
-    type: 'accessory',
+    type: 'trinket',
     rarity: 'rare',
     modifiers: { luck: 6, speed: 1 },
     price: 240,
     description: 'Four-leaf clover preserved in high-purity crystalline jade.'
   },
   {
-    name: 'Vampire Fang Pendant',
-    type: 'accessory',
-    rarity: 'epic',
-    modifiers: { attack: 6, speed: 2, maxHp: -10 },
-    price: 550,
-    description: 'Steals life energy from surroundings. Increases damage but shortens health limits.'
+    name: 'Gilded Sphinx Eye',
+    type: 'trinket',
+    rarity: 'legendary',
+    modifiers: { maxHp: 50, attack: 6, magic: 6, defense: 6, resist: 6, speed: 4, luck: 8 },
+    price: 1500,
+    description: 'A cosmic focal relic that elevates every attribute of the host.'
+  },
+
+  // --- Ring ---
+  {
+    name: 'Copper Ring of Luck',
+    type: 'ring',
+    rarity: 'common',
+    modifiers: { luck: 2 },
+    price: 45,
+    description: 'Turns your finger green, but gives you a warmer fuzzy feeling inside.'
   },
   {
-    name: 'Gilded Sphinx Eye',
-    type: 'accessory',
-    rarity: 'legendary',
-    modifiers: { maxHp: 50, attack: 8, defense: 8, speed: 8, luck: 8 },
-    price: 1500,
-    description: 'A cosmic focal relic that elevates every physical and mental attribute of the host.'
+    name: 'Band of Warding',
+    type: 'ring',
+    rarity: 'rare',
+    modifiers: { resist: 5, defense: 2 },
+    price: 210,
+    description: 'A simple silver band that softens incoming hexes.'
+  },
+  {
+    name: 'Archmage Signet',
+    type: 'ring',
+    rarity: 'epic',
+    modifiers: { magic: 10, luck: 2 },
+    price: 560,
+    description: 'Signet of a fallen tower master, still faintly warm with power.'
   }
 ];
 

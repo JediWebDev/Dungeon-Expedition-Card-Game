@@ -3,7 +3,9 @@
  * Clients send these intents; the server applies rules and returns the new state.
  */
 
-export type EquipSlot = 'weapon' | 'armor' | 'accessory';
+import type { EquipSlot } from './types';
+
+export type { EquipSlot };
 export type UpgradeKey = 'maxRoster' | 'recruitQuality' | 'shopQuality' | 'healerStation';
 
 export type GameAction =

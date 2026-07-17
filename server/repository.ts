@@ -17,23 +17,18 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { getDb } from '../db/index';
 import { equipmentItem, expedition, guild, guildRelic, hero } from '../db/schema/game';
-import { RELICS_POOL } from '../src/data';
+import { RELICS_POOL, CLASS_BASE_STATS } from '../src/data';
 import type {
   Equipment,
+  EquipSlot,
   ExpeditionState,
   GuildState,
   Hero,
   Relic,
 } from '../src/types';
+import { emptyHeroEquipment, EQUIP_SLOTS, normalizeEquipSlot } from '../src/types';
 
 const DEFAULT_GUILD_NAME = 'New Guild';
-
-type EquipSlot = 'weapon' | 'armor' | 'accessory';
-
-/**
- * Ensure the authenticated user has a guild row and return its id.
- * The `user` row must already exist (created by Better Auth on sign-up).
- */
 export async function getOrCreateGuildForUser(userId: string): Promise<string> {
   const db = getDb();
 
@@ -57,7 +52,7 @@ function toEquipment(row: typeof equipmentItem.$inferSelect): Equipment {
   return {
     id: row.id,
     name: row.name,
-    type: row.type,
+    type: normalizeEquipSlot(row.type),
     rarity: row.rarity,
     modifiers: row.modifiers ?? {},
     price: row.price,
@@ -66,6 +61,12 @@ function toEquipment(row: typeof equipmentItem.$inferSelect): Equipment {
 }
 
 function toHero(row: typeof hero.$inferSelect, equipped: Partial<Record<EquipSlot, Equipment>>): Hero {
+  const classDefaults = CLASS_BASE_STATS[row.heroClass];
+  const bag = emptyHeroEquipment();
+  for (const slot of EQUIP_SLOTS) {
+    bag[slot] = equipped[slot] ?? null;
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -76,17 +77,15 @@ function toHero(row: typeof hero.$inferSelect, equipped: Partial<Record<EquipSlo
     maxHp: row.maxHp,
     hp: row.hp,
     attack: row.attack,
+    magic: row.magic ?? classDefaults.magic,
     defense: row.defense,
+    resist: row.resist ?? classDefaults.resist,
     speed: row.speed,
     luck: row.luck,
     morale: row.morale,
     status: row.status,
     diedAt: row.diedAt ? row.diedAt.getTime() : null,
-    equipment: {
-      weapon: equipped.weapon ?? null,
-      armor: equipped.armor ?? null,
-      accessory: equipped.accessory ?? null,
-    },
+    equipment: bag,
     portraitSeed: row.portraitSeed,
     flavorText: row.flavorText,
     traits: row.traits ?? [],
@@ -124,12 +123,12 @@ export async function loadGameState(guildId: string): Promise<{
     return { guild: null, expedition: null };
   }
 
-  // Group equipped items by hero id + slot.
+  // Group equipped items by hero id + slot (legacy weapon/armor/accessory remapped).
   const equippedByHero = new Map<string, Partial<Record<EquipSlot, Equipment>>>();
   for (const item of itemRows) {
     if (item.location === 'equipped' && item.equippedHeroId && item.equipSlot) {
       const slots = equippedByHero.get(item.equippedHeroId) ?? {};
-      slots[item.equipSlot as EquipSlot] = toEquipment(item);
+      slots[normalizeEquipSlot(item.equipSlot)] = toEquipment(item);
       equippedByHero.set(item.equippedHeroId, slots);
     }
   }
@@ -167,10 +166,41 @@ export async function loadGameState(guildId: string): Promise<{
   };
 
   const expeditionState = expeditionRows.length > 0
-    ? (expeditionRows[0].state as ExpeditionState)
+    ? migrateExpeditionState(expeditionRows[0].state as ExpeditionState)
     : null;
 
   return { guild: guildState, expedition: expeditionState };
+}
+
+/** Bring party heroes / equipment bags forward from the old 3-slot model. */
+function migrateExpeditionState(exp: ExpeditionState): ExpeditionState {
+  return {
+    ...exp,
+    party: exp.party.map((h) => migrateHero(h)),
+  };
+}
+
+function migrateHero(h: Hero): Hero {
+  const bag = emptyHeroEquipment();
+  const raw = h.equipment as unknown as Record<string, Equipment | null | undefined>;
+  if (raw && typeof raw === 'object') {
+    if ('weapon' in raw || 'armor' in raw || 'accessory' in raw) {
+      if (raw.weapon) bag.mainHand = { ...raw.weapon, type: 'mainHand' };
+      if (raw.armor) bag.chest = { ...raw.armor, type: 'chest' };
+      if (raw.accessory) bag.ring = { ...raw.accessory, type: 'ring' };
+    }
+    for (const slot of EQUIP_SLOTS) {
+      const item = raw[slot];
+      if (item) bag[slot] = { ...item, type: normalizeEquipSlot(item.type ?? slot) };
+    }
+  }
+  const classDefaults = CLASS_BASE_STATS[h.heroClass];
+  return {
+    ...h,
+    magic: h.magic ?? classDefaults.magic,
+    resist: h.resist ?? classDefaults.resist,
+    equipment: bag,
+  };
 }
 
 /** Persist the full game snapshot for a guild (replace-all inside one transaction). */
@@ -216,7 +246,9 @@ export async function saveGameState(
         maxHp: h.maxHp,
         hp: h.hp,
         attack: h.attack,
+        magic: h.magic,
         defense: h.defense,
+        resist: h.resist,
         speed: h.speed,
         luck: h.luck,
         morale: h.morale,
@@ -255,7 +287,7 @@ export async function saveGameState(
     g.inventory.forEach((e) => pushItem(e, 'inventory'));
     g.shopStock.forEach((e) => pushItem(e, 'shop_stock'));
     g.roster.forEach((h) => {
-      (['weapon', 'armor', 'accessory'] as EquipSlot[]).forEach((slot) => {
+      EQUIP_SLOTS.forEach((slot) => {
         const item = h.equipment[slot];
         if (item) pushItem(item, 'equipped', h.id, slot);
       });

@@ -23,6 +23,7 @@ import type {
   Hero,
   Monster
 } from '../../src/types';
+import { EQUIP_SLOTS } from '../../src/types';
 import {
   generateDungeonRooms,
   generateId,
@@ -112,7 +113,7 @@ export function createStarterGuild(): GuildState {
   const starterSword: Equipment = {
     id: generateId(),
     name: 'Iron Broadsword',
-    type: 'weapon',
+    type: 'mainHand',
     rarity: 'common',
     modifiers: { attack: 5 },
     price: 80,
@@ -122,7 +123,7 @@ export function createStarterGuild(): GuildState {
   const starterVest: Equipment = {
     id: generateId(),
     name: 'Worn Leather Vest',
-    type: 'armor',
+    type: 'chest',
     rarity: 'common',
     modifiers: { defense: 2, speed: 1 },
     price: 40,
@@ -261,7 +262,7 @@ function handleDismissHero(guild: GuildState, expedition: ExpeditionState | null
   if (!hero) throw new GameActionError('Hero not found.', 404);
   if (hero.status === 'Expedition') throw new GameActionError('Cannot dismiss a hero currently on an expedition.');
 
-  const itemsToReturn: Equipment[] = [hero.equipment.weapon, hero.equipment.armor, hero.equipment.accessory].filter(
+  const itemsToReturn: Equipment[] = EQUIP_SLOTS.map((slot) => hero.equipment[slot]).filter(
     (item): item is Equipment => Boolean(item)
   );
 

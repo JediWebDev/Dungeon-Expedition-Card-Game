@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Hero, Equipment, Relic, HeroClass, Dungeon, DungeonRoom, Monster, RoomType, MysteryEvent } from './types';
+import { Hero, Equipment, Relic, HeroClass, Dungeon, DungeonRoom, Monster, RoomType, MysteryEvent, EQUIP_SLOTS, emptyHeroEquipment, EquipmentModifiers } from './types';
 import {
   HERO_NAMES_FIRST,
   HERO_NAMES_LAST,
@@ -38,7 +38,9 @@ export function getModifiedStats(
 ): {
   maxHp: number;
   attack: number;
+  magic: number;
   defense: number;
+  resist: number;
   speed: number;
   luck: number;
 } {
@@ -48,20 +50,24 @@ export function getModifiedStats(
 
   let maxHp = Math.round(baseStats.maxHp * baseScale);
   let attack = Math.round(baseStats.attack * baseScale);
+  let magic = Math.round(baseStats.magic * baseScale);
   let defense = Math.round(baseStats.defense * baseScale);
+  let resist = Math.round(baseStats.resist * baseScale);
   let speed = Math.round(baseStats.speed * baseScale);
   let luck = Math.round(baseStats.luck * baseScale);
 
-  // 2. Add flat equipment modifiers
-  const slots = [hero.equipment.weapon, hero.equipment.armor, hero.equipment.accessory];
-  for (const item of slots) {
-    if (item) {
-      if (item.modifiers.maxHp) maxHp += item.modifiers.maxHp;
-      if (item.modifiers.attack) attack += item.modifiers.attack;
-      if (item.modifiers.defense) defense += item.modifiers.defense;
-      if (item.modifiers.speed) speed += item.modifiers.speed;
-      if (item.modifiers.luck) luck += item.modifiers.luck;
-    }
+  // 2. Add flat equipment modifiers from every paperdoll slot
+  for (const slot of EQUIP_SLOTS) {
+    const item = hero.equipment?.[slot];
+    if (!item) continue;
+    const m = item.modifiers;
+    if (m.maxHp) maxHp += m.maxHp;
+    if (m.attack) attack += m.attack;
+    if (m.magic) magic += m.magic;
+    if (m.defense) defense += m.defense;
+    if (m.resist) resist += m.resist;
+    if (m.speed) speed += m.speed;
+    if (m.luck) luck += m.luck;
   }
 
   // 3. Apply Guild Relic passive bonuses
@@ -96,7 +102,9 @@ export function getModifiedStats(
   return {
     maxHp: Math.max(10, maxHp),
     attack: Math.max(1, attack),
+    magic: Math.max(0, magic),
     defense: Math.max(0, defense),
+    resist: Math.max(0, resist),
     speed: Math.max(1, speed),
     luck: Math.max(0, luck)
   };
@@ -140,17 +148,15 @@ export function generateRandomHero(level: number = 1): Hero {
     maxHp: baseStats.maxHp,
     hp: baseStats.maxHp,
     attack: baseStats.attack,
+    magic: baseStats.magic,
     defense: baseStats.defense,
+    resist: baseStats.resist,
     speed: baseStats.speed,
     luck: baseStats.luck,
     morale: 100,
     status: 'Idle',
     diedAt: null,
-    equipment: {
-      weapon: null,
-      armor: null,
-      accessory: null
-    },
+    equipment: emptyHeroEquipment(),
     portraitSeed: 'default',
     flavorText,
     traits
@@ -181,10 +187,10 @@ export function generateRandomEquipment(guildLevel: number): Equipment {
 
   // Apply some level scaling to the item statistics so higher levels get cooler drops
   const scaleMultiplier = 1 + (guildLevel - 1) * 0.15;
-  const scaledModifiers: Record<string, number> = {};
+  const scaledModifiers: EquipmentModifiers = {};
 
   Object.entries(baseItem.modifiers).forEach(([stat, val]) => {
-    scaledModifiers[stat] = Math.round((val as number) * scaleMultiplier);
+    scaledModifiers[stat as keyof EquipmentModifiers] = Math.round((val as number) * scaleMultiplier);
   });
 
   return {
@@ -192,7 +198,7 @@ export function generateRandomEquipment(guildLevel: number): Equipment {
     id: generateId(),
     modifiers: scaledModifiers,
     price: Math.round(baseItem.price * scaleMultiplier)
-  } as Equipment;
+  };
 }
 
 // Generate a random monster based on difficulty tier

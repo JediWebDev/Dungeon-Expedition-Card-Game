@@ -17,7 +17,9 @@ import { user } from './auth';
 export type EquipmentModifiers = {
   maxHp?: number;
   attack?: number;
+  magic?: number;
   defense?: number;
+  resist?: number;
   speed?: number;
   luck?: number;
 };
@@ -61,7 +63,9 @@ export const hero = pgTable(
     maxHp: integer('max_hp').notNull(),
     hp: integer('hp').notNull(),
     attack: integer('attack').notNull(),
+    magic: integer('magic').notNull().default(0),
     defense: integer('defense').notNull(),
+    resist: integer('resist').notNull().default(0),
     speed: integer('speed').notNull(),
     luck: integer('luck').notNull(),
     morale: integer('morale').notNull().default(100),
@@ -90,9 +94,9 @@ export const equipmentItem = pgTable(
       .references(() => guild.id, { onDelete: 'cascade' }),
     location: text('location').notNull().$type<'inventory' | 'shop_stock' | 'equipped'>(),
     equippedHeroId: uuid('equipped_hero_id').references(() => hero.id, { onDelete: 'set null' }),
-    equipSlot: text('equip_slot').$type<'weapon' | 'armor' | 'accessory'>(),
+    equipSlot: text('equip_slot'),
     name: text('name').notNull(),
-    type: text('type').notNull().$type<'weapon' | 'armor' | 'accessory'>(),
+    type: text('type').notNull(),
     rarity: text('rarity').notNull().$type<'common' | 'rare' | 'epic' | 'legendary'>(),
     modifiers: jsonb('modifiers').$type<EquipmentModifiers>().notNull().default({}),
     price: integer('price').notNull(),
