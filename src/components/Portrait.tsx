@@ -20,7 +20,7 @@ interface PortraitProps {
   monsterType?: string;
   /** Monster avatar seed → R2 key `portraits/monsters/{seed}.webp`. */
   avatarSeed?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'fill';
   className?: string;
   isDead?: boolean;
 }
@@ -39,6 +39,8 @@ export const Portrait: React.FC<PortraitProps> = ({
     md: 'w-16 h-16',
     lg: 'w-24 h-24',
     xl: 'w-32 h-32',
+    /** Stretch to fill the parent box (used by CharacterCard behind equipment slots). */
+    fill: 'w-full h-full',
   };
 
   const candidateUrls = useMemo(
