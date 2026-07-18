@@ -92,7 +92,7 @@ export function resolveSanctuary(snapshot: GameSnapshot, now = Date.now()): Game
 export function createStarterGuild(): GuildState {
   const baseWarrior = generateRandomHero(1);
   baseWarrior.heroClass = 'Warrior';
-  baseWarrior.name = 'Alden Stormweaver';
+  baseWarrior.name = 'Sigurd Ironfist';
   baseWarrior.traits = ['Brave (+15% Attack in combat)'];
 
   const baseRogue = generateRandomHero(1);
