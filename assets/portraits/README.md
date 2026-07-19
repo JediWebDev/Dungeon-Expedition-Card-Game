@@ -1,13 +1,14 @@
 # Portrait assets for Cloudflare R2
 #
-# Mirror this tree under portraits/ in the bucket (upload script prefixes keys):
+# This local folder is optional. Uploads in the live bucket currently live at:
 #
-#   heroes/warrior/default.webp
-#   heroes/rogue/default.webp
-#   heroes/mage/default.webp
-#   heroes/cleric/default.webp
-#   monsters/goblin.webp
-#   monsters/dragon.webp
-#   …
+#   hero-portraits/Sigurd_Warrior.png
+#   hero-portraits/Lyra_Rogue.png
+#   hero-portraits/Kaeleen_Mage.png
+#   hero-portraits/Sariel_Cleric.png
 #
-# Then run: npm run portraits:upload -- ./assets/portraits
+# Register new stems in `src/lib/portraits.ts` → `HERO_PORTRAITS_BY_CLASS`.
+# Public URLs are built as: `${VITE_R2_PUBLIC_URL}/hero-portraits/{Stem}.png`
+#
+# Server-side upload helper (optional):
+#   npm run portraits:upload -- ./assets/portraits

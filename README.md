@@ -30,21 +30,21 @@ Why Drizzle: lightweight TypeScript ORM that fits this Vite/React stack and pair
 
 ## Cloudflare R2 (portraits)
 
-Hero and monster portraits are served from a **public** R2 bucket. Until
+Hero portraits are served from a **public** R2 bucket. Until
 `VITE_R2_PUBLIC_URL` is set (or an object is missing), the UI keeps the
 procedural SVG portraits.
 
-### Create the bucket (Cloudflare dashboard)
+### Create / connect the bucket (Cloudflare dashboard)
 
 1. Open [Cloudflare Dashboard → R2](https://dash.cloudflare.com/?to=/:account/r2).
-2. **Create bucket** named e.g. `guilds-of-ardessia-assets` (match `R2_BUCKET_NAME`).
+2. Use bucket **`guilds-of-ardessia`** (match `R2_BUCKET_NAME`).
 3. Open the bucket → **Settings**:
    - Under **Public access**, enable an **r2.dev** subdomain (fine for local/dev),
      **or** connect a **Custom Domain** for production.
    - Copy the public base URL (no trailing slash) into `R2_PUBLIC_URL` and
      `VITE_R2_PUBLIC_URL`.
 4. **Manage R2 API Tokens** → create a token with **Object Read & Write** scoped
-   to this bucket. Copy:
+   to this bucket (needed for uploads / health checks). Copy:
    - Access Key ID → `R2_ACCESS_KEY_ID`
    - Secret Access Key → `R2_SECRET_ACCESS_KEY`
 5. Your Account ID (R2 overview / URL) → `R2_ACCOUNT_ID`.
@@ -52,28 +52,24 @@ procedural SVG portraits.
 ### Object key layout
 
 ```
-portraits/heroes/warrior/default.webp
-portraits/heroes/rogue/default.webp
-portraits/heroes/mage/default.webp
-portraits/heroes/cleric/default.webp
-portraits/heroes/{class}/{portraitSeed}.webp   # optional variants
-portraits/monsters/{avatarSeed}.webp           # e.g. goblin.webp, dragon.webp
+hero-portraits/Sigurd_Warrior.png
+hero-portraits/Lyra_Rogue.png
+hero-portraits/Kaeleen_Mage.png
+hero-portraits/Sariel_Cleric.png
+equipment/…                                 # next
 ```
 
-Place matching files under `assets/portraits/…` locally, then:
-
-```bash
-npm run portraits:upload -- ./assets/portraits
-```
+Register new hero stems in `src/lib/portraitCatalog.ts` → `HERO_PORTRAITS_BY_CLASS`.
+The browser loads `${VITE_R2_PUBLIC_URL}/hero-portraits/{Stem}.png`.
 
 ### Code
 
 | File | Role |
 | --- | --- |
 | `server/r2.ts` | S3-compatible R2 client (uploads, health check). |
+| `src/lib/portraitCatalog.ts` | Known portrait stems by class. |
 | `src/lib/portraits.ts` | Public URL / object-key helpers for the browser. |
 | `src/components/Portrait.tsx` | Tries R2 images, falls back to SVG. |
-| `scripts/upload-portraits.ts` | Bulk upload helper. |
 
 ## Persistence architecture
 

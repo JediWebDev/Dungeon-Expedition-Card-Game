@@ -94,21 +94,25 @@ export function createStarterGuild(): GuildState {
   baseWarrior.heroClass = 'Warrior';
   baseWarrior.name = 'Sigurd Ironfist';
   baseWarrior.traits = ['Brave (+15% Attack in combat)'];
+  baseWarrior.portraitSeed = 'Sigurd_Warrior';
 
   const baseRogue = generateRandomHero(1);
   baseRogue.heroClass = 'Rogue';
   baseRogue.name = 'Lyra Shadowstep';
   baseRogue.traits = ['Agile (+20% Speed)'];
+  baseRogue.portraitSeed = 'Lyra_Rogue';
 
   const baseMage = generateRandomHero(1);
   baseMage.heroClass = 'Mage';
-  baseMage.name = 'Kaelen Sunstrider';
+  baseMage.name = 'Kaeleen Sunstrider';
   baseMage.traits = ['Reckless (+30% Attack, -20% Defense)'];
+  baseMage.portraitSeed = 'Kaeleen_Mage';
 
   const baseCleric = generateRandomHero(1);
   baseCleric.heroClass = 'Cleric';
   baseCleric.name = 'Sariel Lightbringer';
   baseCleric.traits = ['Sturdy (+15% Defense in combat)'];
+  baseCleric.portraitSeed = 'Sariel_Cleric';
 
   const starterSword: Equipment = {
     id: generateId(),

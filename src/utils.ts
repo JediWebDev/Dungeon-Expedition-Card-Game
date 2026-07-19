@@ -15,6 +15,7 @@ import {
   MYSTERY_EVENTS_CATALOG,
   RELICS_POOL
 } from './data';
+import { pickHeroPortraitSeed } from './lib/portraitCatalog';
 
 // Helper to generate a unique random ID.
 // Returns a real UUID so entity ids map directly onto the Postgres `uuid`
@@ -157,7 +158,7 @@ export function generateRandomHero(level: number = 1): Hero {
     status: 'Idle',
     diedAt: null,
     equipment: emptyHeroEquipment(),
-    portraitSeed: 'default',
+    portraitSeed: pickHeroPortraitSeed(heroClass),
     flavorText,
     traits
   };

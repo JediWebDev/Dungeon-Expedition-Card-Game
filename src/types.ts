@@ -127,7 +127,7 @@ export interface Hero {
   /** Epoch ms when the hero fell; used by Sanctuary auto-revive. Null when not dead. */
   diedAt: number | null;
   equipment: HeroEquipment;
-  portraitSeed: string; // R2 variant key under portraits/heroes/{class}/; SVG fallback if missing
+  portraitSeed: string; // R2 file stem under hero-portraits/ (e.g. Sigurd_Warrior); SVG fallback if missing
   flavorText: string;
   traits: string[]; // e.g. ["Brave", "Clumsy", "Lucky"]
 }

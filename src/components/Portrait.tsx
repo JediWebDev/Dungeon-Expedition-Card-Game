@@ -15,7 +15,7 @@ import {
 
 interface PortraitProps {
   heroClass?: HeroClass;
-  /** Per-hero variant seed → R2 key `portraits/heroes/{class}/{seed}.webp`. */
+  /** Per-hero R2 stem → `hero-portraits/{portraitSeed}.png`. */
   portraitSeed?: string;
   monsterType?: string;
   /** Monster avatar seed → R2 key `portraits/monsters/{seed}.webp`. */
