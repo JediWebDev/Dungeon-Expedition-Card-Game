@@ -6,6 +6,7 @@
 import React from 'react';
 import { Swords, Zap, Sparkles, Heart, ShieldCheck } from 'lucide-react';
 import { CombatActionType, CombatState, Hero, Monster } from '../../types';
+import { UiButton } from '../ui/UiButton';
 
 const ACTION_DEFS: Array<[CombatActionType, string, React.ElementType]> = [
   ['attack', 'Attack', Swords],
@@ -77,10 +78,11 @@ export const CombatActionBar: React.FC<CombatActionBarProps> = ({
             (action === 'item' && (combat.itemUsesRemaining[activeHero.id] ?? 0) <= 0);
 
           return (
-            <button
+            <UiButton
               key={action}
               type="button"
               disabled={disabled}
+              className="!min-w-0 !px-4 !py-2 !text-[10px]"
               onClick={() => {
                 let targetId: string | undefined;
                 if (needsEnemy) {
@@ -90,14 +92,9 @@ export const CombatActionBar: React.FC<CombatActionBarProps> = ({
                 }
                 onSubmit(action, targetId);
               }}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-sm text-[10px] font-bold uppercase tracking-wider border transition ${
-                disabled
-                  ? 'bg-stone-950 text-stone-600 border-stone-850 cursor-not-allowed'
-                  : 'bg-stone-900 text-stone-200 border-stone-700 hover:border-amber-600 hover:text-amber-400 cursor-pointer'
-              }`}
             >
               <Icon size={12} /> {label}
-            </button>
+            </UiButton>
           );
         })}
       </div>

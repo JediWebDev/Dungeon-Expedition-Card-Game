@@ -27,6 +27,8 @@ import {
   changeEmail,
   deleteUser,
 } from '../lib/auth-client';
+import { UiButton } from './ui/UiButton';
+import { UiTextHeader } from './ui/UiTextHeader';
 
 type AuthMode = 'signIn' | 'signUp';
 
@@ -43,18 +45,6 @@ function labelClassName() {
   return 'block text-[10px] uppercase tracking-widest text-stone-500 font-sans font-bold mb-1.5';
 }
 
-function primaryButtonClassName(disabled?: boolean) {
-  return `inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-xs font-sans font-bold uppercase tracking-wider transition ${
-    disabled
-      ? 'bg-stone-800 text-stone-500 cursor-not-allowed'
-      : 'bg-amber-500 hover:bg-amber-400 text-stone-950'
-  }`;
-}
-
-function secondaryButtonClassName() {
-  return 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-xs font-sans font-bold uppercase tracking-wider border border-stone-700 text-stone-300 hover:border-stone-500 hover:text-stone-100 transition';
-}
-
 function Section({
   title,
   icon,
@@ -66,10 +56,9 @@ function Section({
 }) {
   return (
     <section className="bg-stone-900/40 border border-stone-800 rounded-sm p-5 space-y-4">
-      <h2 className="flex items-center gap-2 text-xs font-sans font-bold uppercase tracking-widest text-amber-400">
-        {icon}
+      <UiTextHeader as="h2" icon={icon} className="!min-w-0">
         {title}
-      </h2>
+      </UiTextHeader>
       {children}
     </section>
   );
@@ -202,10 +191,10 @@ function AuthForms({ onAuthChanged }: { onAuthChanged: () => void }) {
 
         {error && <StatusMessage kind="error" message={error} />}
 
-        <button type="submit" disabled={busy} className={`${primaryButtonClassName(busy)} w-full`}>
+        <UiButton type="submit" disabled={busy} fullWidth>
           {mode === 'signIn' ? <LogIn size={14} /> : <UserPlus size={14} />}
           {busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-        </button>
+        </UiButton>
       </form>
 
       <p className="text-center text-xs text-stone-500 font-sans">
@@ -358,10 +347,10 @@ function AccountDashboard({
             Manage your Guilds of Ardessia identity and security.
           </p>
         </div>
-        <button type="button" onClick={handleSignOut} disabled={busy === 'signOut'} className={secondaryButtonClassName()}>
+        <UiButton type="button" onClick={handleSignOut} disabled={busy === 'signOut'} variant="ghost">
           <LogOut size={14} />
           {busy === 'signOut' ? 'Signing out…' : 'Sign out'}
-        </button>
+        </UiButton>
       </div>
 
       {message && <StatusMessage kind={message.kind} message={message.text} />}
@@ -413,9 +402,9 @@ function AccountDashboard({
               />
             </div>
           </div>
-          <button type="submit" disabled={busy === 'profile'} className={primaryButtonClassName(busy === 'profile')}>
+          <UiButton type="submit" disabled={busy === 'profile'}>
             {busy === 'profile' ? 'Saving…' : 'Save profile'}
-          </button>
+          </UiButton>
         </form>
       </Section>
 
@@ -467,9 +456,9 @@ function AccountDashboard({
               />
             </div>
           </div>
-          <button type="submit" disabled={busy === 'password'} className={primaryButtonClassName(busy === 'password')}>
+          <UiButton type="submit" disabled={busy === 'password'}>
             {busy === 'password' ? 'Updating…' : 'Change password'}
-          </button>
+          </UiButton>
         </form>
       </Section>
 
@@ -478,10 +467,10 @@ function AccountDashboard({
           Web3 wallet linking (SIWE) is prepared in the database and will connect here once Better Auth
           wallet support is enabled. You will be able to bind an on-chain address to this account.
         </p>
-        <button type="button" disabled className={`${secondaryButtonClassName()} opacity-50 cursor-not-allowed`}>
+        <UiButton type="button" disabled variant="ghost">
           <Wallet size={14} />
           Connect wallet — coming soon
-        </button>
+        </UiButton>
       </Section>
 
       <Section title="Danger zone" icon={<Trash2 size={14} className="text-red-400" />}>
@@ -503,14 +492,10 @@ function AccountDashboard({
               autoComplete="current-password"
             />
           </div>
-          <button
-            type="submit"
-            disabled={busy === 'delete'}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-sm text-xs font-sans font-bold uppercase tracking-wider bg-red-900/40 border border-red-800 text-red-300 hover:bg-red-900/70 transition disabled:opacity-50"
-          >
+          <UiButton type="submit" disabled={busy === 'delete'} variant="danger">
             <Trash2 size={14} />
             {busy === 'delete' ? 'Deleting…' : 'Delete account'}
-          </button>
+          </UiButton>
         </form>
       </Section>
     </div>

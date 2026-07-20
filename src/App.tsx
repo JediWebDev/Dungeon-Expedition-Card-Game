@@ -10,6 +10,7 @@ import { DungeonRunner } from './components/DungeonRunner';
 import { AccountScreen } from './components/AccountScreen';
 import { Shield, Compass, Edit2, Check, CircleUser } from 'lucide-react';
 import { useSession } from './lib/auth-client';
+import { UiButton } from './components/ui/UiButton';
 
 function DashboardContent() {
   const {
@@ -50,15 +51,6 @@ function DashboardContent() {
   const handleAuthChanged = () => {
     void reloadPersistedState();
   };
-
-  const navButtonClass = (active: boolean, enabled = true) =>
-    `flex items-center gap-2.5 py-2.5 px-4 rounded-sm text-xs font-sans font-bold uppercase tracking-wider transition-all w-full border ${
-      active
-        ? 'bg-stone-900 border-amber-900/50 text-amber-400 shadow-[inset_0_0_10px_rgba(120,53,4,0.15)]'
-        : enabled
-          ? 'border-transparent text-stone-400 hover:text-stone-200 hover:bg-stone-900/30 cursor-pointer'
-          : 'border-transparent text-stone-700 cursor-not-allowed opacity-40'
-    }`;
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-200 flex flex-col font-serif selection:bg-amber-500/30 selection:text-amber-200 antialiased relative">
@@ -148,43 +140,41 @@ function DashboardContent() {
       )}
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 relative z-10">
-        <nav className="w-full md:w-56 bg-stone-950 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
-          <button
+        <nav className="w-full md:w-60 bg-stone-950 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
+          <UiButton
+            fullWidth
             onClick={() => setActiveScreen('guild')}
-            className={navButtonClass(activeScreen === 'guild')}
+            variant={activeScreen === 'guild' ? 'primary' : 'ghost'}
           >
-            <Shield size={14} className={activeScreen === 'guild' ? 'text-amber-500' : ''} /> Guild
-            Headquarters
-          </button>
+            <Shield size={14} /> Guild Headquarters
+          </UiButton>
 
-          <button
+          <UiButton
+            fullWidth
             onClick={() => expedition && setActiveScreen('expedition')}
             disabled={!expedition}
-            className={`${navButtonClass(activeScreen === 'expedition', !!expedition)} justify-between`}
+            variant={activeScreen === 'expedition' ? 'primary' : 'ghost'}
           >
-            <span className="flex items-center gap-2.5">
-              <Compass
-                size={14}
-                className={activeScreen === 'expedition' ? 'text-amber-500 animate-pulse' : ''}
-              />{' '}
-              Campaign Gate
-            </span>
-            {expedition && expedition.status === 'room_active' && (
+            <Compass size={14} className={activeScreen === 'expedition' ? 'animate-pulse' : ''} />
+            Campaign Gate
+            {expedition && expedition.status === 'room_active' ? (
               <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
-            )}
-          </button>
+            ) : null}
+          </UiButton>
 
-          <button
+          <UiButton
+            fullWidth
             onClick={() => setActiveScreen('account')}
-            className={`${navButtonClass(activeScreen === 'account')} md:mt-auto`}
+            variant={activeScreen === 'account' ? 'primary' : 'ghost'}
+            className="md:mt-auto"
             title="Account"
           >
-            <CircleUser size={14} className={activeScreen === 'account' ? 'text-amber-500' : ''} />
+            <CircleUser size={14} />
             Account
             {session?.user ? (
-              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Signed in" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Signed in" />
             ) : null}
-          </button>
+          </UiButton>
 
           <div className="hidden md:block pt-4 border-t border-stone-800 text-[10px] text-stone-500 leading-normal bg-stone-900/20 p-3 rounded border border-stone-800/30 font-sans">
             <span className="font-bold text-stone-300 block mb-1 uppercase tracking-widest font-sans">

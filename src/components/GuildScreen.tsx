@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { RosterCharacterCard } from './character/RosterCharacterCard';
 import { Portrait } from './Portrait';
+import { UiButton } from './ui/UiButton';
+import { UiTextHeader } from './ui/UiTextHeader';
 import { getModifiedStats } from '../utils';
 import { DUNGEON_TEMPLATES } from '../data';
 import {
@@ -46,16 +48,7 @@ export const GuildScreen: React.FC = () => {
 
   const selectedDungeon = DUNGEON_TEMPLATES.find((d) => d.id === selectedDungeonId) || DUNGEON_TEMPLATES[0];
 
-  // Helper for tab styling
-  const tabClass = (tab: 'roster' | 'recruit' | 'armory' | 'upgrades') => {
-    return `flex items-center gap-2 py-3 px-4 rounded-sm text-xs font-sans font-bold uppercase tracking-widest transition-all border ${
-      activeTab === tab
-        ? 'bg-amber-900/20 border-amber-600/50 text-amber-400 shadow-[0_0_15px_rgba(217,119,6,0.2)]'
-        : 'bg-stone-900/50 border-stone-800 text-stone-400 hover:text-stone-200 hover:bg-stone-800/70'
-    }`;
-  };
-
-const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
+  const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
 
   // Toggle party hero selection
   const handleTogglePartyHero = (heroId: string) => {
@@ -83,19 +76,31 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-transparent relative z-10">
       {/* Tab Navigation Hub */}
-      <div className="flex flex-wrap gap-2.5 mb-6 border-b border-stone-800 pb-4">
-        <button onClick={() => setActiveTab('roster')} className={tabClass('roster')}>
-          <Users size={16} /> Roster ({guild.roster.length}/{guild.upgrades.maxRoster})
-        </button>
-        <button onClick={() => setActiveTab('recruit')} className={tabClass('recruit')}>
-          <UserPlus size={16} /> Recruiting Hall ({guild.recruitStock.length})
-        </button>
-        <button onClick={() => setActiveTab('armory')} className={tabClass('armory')}>
-          <ShoppingBag size={16} /> Marketplace & Vault
-        </button>
-        <button onClick={() => setActiveTab('upgrades')} className={tabClass('upgrades')}>
-          <ArrowUpCircle size={16} /> Guild Chamber Upgrades
-        </button>
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800 pb-4">
+        <UiButton
+          onClick={() => setActiveTab('roster')}
+          variant={activeTab === 'roster' ? 'primary' : 'ghost'}
+        >
+          <Users size={14} /> Roster ({guild.roster.length}/{guild.upgrades.maxRoster})
+        </UiButton>
+        <UiButton
+          onClick={() => setActiveTab('recruit')}
+          variant={activeTab === 'recruit' ? 'primary' : 'ghost'}
+        >
+          <UserPlus size={14} /> Recruiting Hall ({guild.recruitStock.length})
+        </UiButton>
+        <UiButton
+          onClick={() => setActiveTab('armory')}
+          variant={activeTab === 'armory' ? 'primary' : 'ghost'}
+        >
+          <ShoppingBag size={14} /> Marketplace & Vault
+        </UiButton>
+        <UiButton
+          onClick={() => setActiveTab('upgrades')}
+          variant={activeTab === 'upgrades' ? 'primary' : 'ghost'}
+        >
+          <ArrowUpCircle size={14} /> Guild Chamber Upgrades
+        </UiButton>
       </div>
 
       {/* Roster Tab */}
@@ -104,20 +109,15 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
           {/* Action Header bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-stone-900/40 p-5 rounded-sm border border-stone-800">
             <div>
-              <h2 className="text-xl font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                🛡️ Hired Adventurers
-              </h2>
-              <p className="text-xs text-stone-400 mt-1 font-sans">
+              <UiTextHeader>Hired Adventurers</UiTextHeader>
+              <p className="text-xs text-stone-400 mt-2 font-sans">
                 Manage your guild roster, equip gear, heal wounds, and prepare expedition campaigns.
               </p>
             </div>
             {idleHeroes.length > 0 && (
-              <button
-                onClick={() => setShowEmbarkDrawer(true)}
-                className="bg-amber-900/30 hover:bg-amber-900/50 text-amber-400 font-sans font-bold py-2.5 px-5 rounded-sm text-xs uppercase tracking-widest transition-all flex items-center gap-2 border border-amber-800/60 hover:border-amber-600 shadow-[0_0_15px_rgba(217,119,6,0.15)] active:scale-95 cursor-pointer"
-              >
+              <UiButton onClick={() => setShowEmbarkDrawer(true)}>
                 <Play size={14} fill="currentColor" /> Form Expedition Party
-              </button>
+              </UiButton>
             )}
           </div>
 
@@ -129,12 +129,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
               <p className="text-xs text-stone-500 mt-1 mb-4 font-sans">
                 Head to the Recruiting Hall tab to hire new mercenary fighters.
               </p>
-              <button
-                onClick={() => setActiveTab('recruit')}
-                className="text-amber-400 border border-amber-500/30 hover:border-amber-500 text-xs py-1.5 px-4 rounded-lg transition"
-              >
-                Go Recruit Hall
-              </button>
+              <UiButton onClick={() => setActiveTab('recruit')}>Go Recruit Hall</UiButton>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pr-1 flex-1 pb-8">
@@ -163,9 +158,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
       {activeTab === 'recruit' && (
         <div className="flex flex-col flex-1 min-h-0">
           <div className="mb-6 bg-stone-900/30 p-4 border border-stone-800 rounded-sm">
-            <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-              🍻 The Recruiting Tavern
-            </h2>
+            <UiTextHeader>The Recruiting Tavern</UiTextHeader>
             <p className="text-xs text-stone-400 mt-1 font-sans">
               Hire specialized fighters, healers, and mages. Candidates auto-refresh after expeditions.
             </p>
@@ -237,17 +230,12 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                         {price} GOLD
                       </div>
 
-                      <button
+                      <UiButton
                         disabled={!canAfford || !hasRosterSpace}
                         onClick={() => recruitHero(candidate.id)}
-                        className={`font-bold py-2 px-4 rounded-sm text-[11px] uppercase tracking-widest transition flex items-center gap-1.5 border cursor-pointer ${
-                          canAfford && hasRosterSpace
-                            ? 'bg-amber-900/20 text-amber-500 border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.1)]'
-                            : 'bg-stone-900 text-stone-600 border-stone-850 cursor-not-allowed'
-                        }`}
                       >
                         {hasRosterSpace ? 'Hire Adventurer' : 'Roster Full'}
-                      </button>
+                      </UiButton>
                     </div>
                   </div>
                 );
@@ -263,9 +251,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
           {/* Marketplace Buying Station (Left/Top) */}
           <div className="flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 rounded-sm border border-stone-800">
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                🛍️ Guild Merchant Bazaar
-              </h2>
+              <UiTextHeader>Guild Merchant Bazaar</UiTextHeader>
               <p className="text-xs text-stone-400 mt-1 font-sans">
                 Purchase enchanted armor and high-rarity accessories. Restocks automatically.
               </p>
@@ -319,17 +305,9 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                         <span className="text-amber-400 font-bold text-sm flex items-center gap-1.5">
                           <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div> {item.price}g
                         </span>
-                        <button
-                          disabled={!canAfford}
-                          onClick={() => buyEquipment(item.id)}
-                          className={`w-full sm:w-auto font-bold py-1.5 px-3 rounded-sm text-[10px] uppercase tracking-wider transition border cursor-pointer ${
-                            canAfford
-                              ? 'bg-amber-900/20 text-amber-500 border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600'
-                              : 'bg-stone-900 text-stone-600 border-stone-850 cursor-not-allowed'
-                          }`}
-                        >
+                        <UiButton disabled={!canAfford} onClick={() => buyEquipment(item.id)}>
                           Buy Item
-                        </button>
+                        </UiButton>
                       </div>
                     </div>
                   );
@@ -341,9 +319,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
           {/* Vault Storage Sell (Right/Bottom) */}
           <div className="flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 rounded-sm border border-stone-800">
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                🗄️ Vault Storage Box
-              </h2>
+              <UiTextHeader>Vault Storage Box</UiTextHeader>
               <p className="text-xs text-stone-400 mt-1 font-sans">
                 Resell surplus weapons or armor back to traveling traders for 40% value.
               </p>
@@ -399,12 +375,9 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                         <span className="text-stone-400 font-bold text-xs font-sans">
                           +{resellValue}g
                         </span>
-                        <button
-                          onClick={() => sellEquipment(item.id)}
-                          className="text-rose-400 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-600 py-1 px-2.5 rounded-sm text-[10px] uppercase font-sans tracking-wider transition-all cursor-pointer"
-                        >
+                        <UiButton variant="danger" onClick={() => sellEquipment(item.id)}>
                           Sell Item
-                        </button>
+                        </UiButton>
                       </div>
                     </div>
                   );
@@ -419,9 +392,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
       {activeTab === 'upgrades' && (
         <div className="flex flex-col flex-1 min-h-0 pb-8 animate-fade-in">
           <div className="mb-6 bg-stone-900/30 p-4 border border-stone-800 rounded-sm">
-            <h2 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-              🏰 Guildmaster Chamber Board
-            </h2>
+            <UiTextHeader>Guildmaster Chamber Board</UiTextHeader>
             <p className="text-xs text-stone-400 mt-1 font-sans">
               Spend gold earned from expeditions to expand facilities, unlock better recruits, and scale your operations.
             </p>
@@ -434,9 +405,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Space Station Facility
                 </span>
-                <h3 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                  ⛺ Sleeping Quarters Annex
-                </h3>
+                <UiTextHeader as="h3">Sleeping Quarters Annex</UiTextHeader>
                 <p className="text-xs text-stone-400 mt-2 leading-relaxed font-sans">
                   Expand bunk beds and hire assistant clerks. Increases your maximum recruited adventurer capacity.
                 </p>
@@ -461,16 +430,15 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                       <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div>{' '}
                       {[150, 300, 500, 800, 1200][Math.round((guild.upgrades.maxRoster - 6) / 2)]}g
                     </span>
-                    <button
+                    <UiButton
                       onClick={() => upgradeBuilding('maxRoster')}
                       disabled={
                         guild.gold <
                         [150, 300, 500, 800, 1200][Math.round((guild.upgrades.maxRoster - 6) / 2)]
                       }
-                      className="bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 disabled:bg-stone-900 disabled:text-stone-600 disabled:border-stone-850 font-sans font-bold py-2 px-4 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
                     >
                       Construct Expansion
-                    </button>
+                    </UiButton>
                   </>
                 )}
               </div>
@@ -482,9 +450,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Human Resources Board
                 </span>
-                <h3 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                  📜 Tavern Hiring Agency
-                </h3>
+                <UiTextHeader as="h3">Tavern Hiring Agency</UiTextHeader>
                 <p className="text-xs text-stone-400 mt-2 leading-relaxed font-sans">
                   Advertise higher payout bounds and sign with prestigious guilds. Attracts level-appropriate veterans with double traits pool.
                 </p>
@@ -508,13 +474,12 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                     <span className="text-amber-400 font-bold text-sm flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div> {[200, 450, 800, 1500][guild.upgrades.recruitQuality - 1]}g
                     </span>
-                    <button
+                    <UiButton
                       onClick={() => upgradeBuilding('recruitQuality')}
                       disabled={guild.gold < [200, 450, 800, 1500][guild.upgrades.recruitQuality - 1]}
-                      className="bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 disabled:bg-stone-900 disabled:text-stone-600 disabled:border-stone-850 font-sans font-bold py-2 px-4 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
                     >
                       Sign Contracts
-                    </button>
+                    </UiButton>
                   </>
                 )}
               </div>
@@ -526,9 +491,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Supply Procurement Chamber
                 </span>
-                <h3 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                  ⚔️ Master Blacksmith Anvil
-                </h3>
+                <UiTextHeader as="h3">Master Blacksmith Anvil</UiTextHeader>
                 <p className="text-xs text-stone-400 mt-2 leading-relaxed font-sans">
                   Invite legendary weaponsmith suppliers to set up permanent shops in your hall. Stocks Epic and Legendary equipment.
                 </p>
@@ -552,13 +515,12 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                     <span className="text-amber-400 font-bold text-sm flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div> {[250, 500, 900, 1600][guild.upgrades.shopQuality - 1]}g
                     </span>
-                    <button
+                    <UiButton
                       onClick={() => upgradeBuilding('shopQuality')}
                       disabled={guild.gold < [250, 500, 900, 1600][guild.upgrades.shopQuality - 1]}
-                      className="bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 disabled:bg-stone-900 disabled:text-stone-600 disabled:border-stone-850 font-sans font-bold py-2 px-4 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
                     >
                       Renovate Forge
-                    </button>
+                    </UiButton>
                   </>
                 )}
               </div>
@@ -570,9 +532,7 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Mending & Morale Chamber
                 </span>
-                <h3 className="text-lg font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                  ⛪ Sanctuary Altar & Baths
-                </h3>
+                <UiTextHeader as="h3">Sanctuary Altar & Baths</UiTextHeader>
                 <p className="text-xs text-stone-400 mt-2 leading-relaxed font-sans">
                   Set up warm springs and blessed altars inside your guild. Higher ranks reduce
                   instant heal/revive gold and shorten free Sanctuary rest timers for fallen heroes.
@@ -597,13 +557,12 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                     <span className="text-amber-400 font-bold text-sm flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]"></div> {[100, 250, 600, 1100][guild.upgrades.healerStation - 1]}g
                     </span>
-                    <button
+                    <UiButton
                       onClick={() => upgradeBuilding('healerStation')}
                       disabled={guild.gold < [100, 250, 600, 1100][guild.upgrades.healerStation - 1]}
-                      className="bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 disabled:bg-stone-900 disabled:text-stone-600 disabled:border-stone-850 font-sans font-bold py-2 px-4 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
                     >
                       Bless Altar
-                    </button>
+                    </UiButton>
                   </>
                 )}
               </div>
@@ -621,19 +580,14 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
             <div className="relative z-10 flex flex-col h-full min-h-0">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-stone-100 flex items-center gap-2 uppercase tracking-wide">
-                    🏰 Prepare Expedition Campaign
-                  </h3>
+                  <UiTextHeader as="h3">Prepare Expedition Campaign</UiTextHeader>
                   <p className="text-xs text-stone-400 mt-1 font-sans">
                     Draft up to 4 alive, idle guild characters and pick which subterranean gate sector to conquer.
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowEmbarkDrawer(false)}
-                  className="text-stone-400 hover:text-stone-200 border border-stone-800 hover:border-stone-700 p-1 px-3 rounded-sm text-xs uppercase tracking-wider font-sans bg-stone-900/50 cursor-pointer"
-                >
+                <UiButton variant="ghost" onClick={() => setShowEmbarkDrawer(false)}>
                   Close
-                </button>
+                </UiButton>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto pr-1 mb-6">
@@ -751,23 +705,12 @@ const idleHeroes = guild.roster.filter((h) => h.status === 'Idle');
                 </div>
 
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => setShowEmbarkDrawer(false)}
-                    className="flex-1 sm:flex-initial bg-stone-900 hover:bg-stone-800 border border-stone-850 hover:border-stone-700 text-stone-300 font-bold py-2 px-5 rounded-sm text-xs uppercase tracking-wider transition cursor-pointer"
-                  >
+                  <UiButton variant="ghost" onClick={() => setShowEmbarkDrawer(false)}>
                     Cancel
-                  </button>
-                  <button
-                    onClick={handleEmbark}
-                    disabled={selectedPartyHeroIds.length === 0}
-                    className={`flex-1 sm:flex-initial font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition flex items-center justify-center gap-1.5 border cursor-pointer ${
-                      selectedPartyHeroIds.length > 0
-                        ? 'bg-amber-900/20 text-amber-500 border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 shadow-[0_0_15px_rgba(217,119,6,0.15)]'
-                        : 'bg-stone-900 text-stone-600 border-stone-850 cursor-not-allowed'
-                    }`}
-                  >
+                  </UiButton>
+                  <UiButton onClick={handleEmbark} disabled={selectedPartyHeroIds.length === 0}>
                     Embark Expedition <Compass size={14} />
-                  </button>
+                  </UiButton>
                 </div>
               </div>
             </div>

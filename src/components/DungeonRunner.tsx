@@ -21,6 +21,8 @@ import {
   ArrowRight,
   BookOpen
 } from 'lucide-react';
+import { UiButton } from './ui/UiButton';
+import { UiTextHeader } from './ui/UiTextHeader';
 
 export const DungeonRunner: React.FC = () => {
   const {
@@ -104,12 +106,9 @@ export const DungeonRunner: React.FC = () => {
         <p className="text-xs text-stone-400 mt-1 max-w-sm text-center font-sans">
           Go back to the Guild roster board and assemble a campaign party to launch a run.
         </p>
-        <button
-          onClick={() => setActiveScreen('guild')}
-          className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-        >
+        <UiButton className="mt-6" onClick={() => setActiveScreen('guild')}>
           Return to Guild Hall
-        </button>
+        </UiButton>
       </div>
     );
   }
@@ -119,18 +118,15 @@ export const DungeonRunner: React.FC = () => {
   if (status === 'victory') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
-        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in flex flex-col items-center">
           <span className="text-5xl block mb-3">🏆</span>
-          <h4 className="text-lg font-bold text-amber-400 uppercase tracking-wide">Expedition Victorious!</h4>
+          <UiTextHeader>Expedition Victorious!</UiTextHeader>
           <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
             Your team successfully defeated the dungeon boss and mapped out the sectors! They returned safely with relics and full loot payouts.
           </p>
-          <button
-            onClick={() => setActiveScreen('guild')}
-            className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer shadow-[0_0_15px_rgba(217,119,6,0.15)]"
-          >
+          <UiButton className="mt-6" onClick={() => setActiveScreen('guild')}>
             Return to Guild HQ
-          </button>
+          </UiButton>
         </div>
       </div>
     );
@@ -139,18 +135,15 @@ export const DungeonRunner: React.FC = () => {
   if (status === 'retreat') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
-        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in flex flex-col items-center">
           <span className="text-5xl block mb-3">🏳️</span>
-          <h4 className="text-lg font-bold text-stone-300 uppercase tracking-wide">Expedition Retreated</h4>
+          <UiTextHeader>Expedition Retreated</UiTextHeader>
           <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
             The guild master authorized an emergency caravan pullout. Survivors returned fainted or exhausted, but they carried back half of the plundered gold!
           </p>
-          <button
-            onClick={() => setActiveScreen('guild')}
-            className="mt-6 bg-stone-900 border border-stone-800 hover:border-stone-600 text-stone-300 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-          >
+          <UiButton className="mt-6" variant="ghost" onClick={() => setActiveScreen('guild')}>
             Return to Guild HQ
-          </button>
+          </UiButton>
         </div>
       </div>
     );
@@ -159,18 +152,15 @@ export const DungeonRunner: React.FC = () => {
   if (status === 'defeat') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-stone-950 p-8">
-        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in">
+        <div className="my-auto py-8 text-center max-w-md mx-auto animate-fade-in flex flex-col items-center">
           <span className="text-5xl block mb-3">💀</span>
-          <h4 className="text-lg font-bold text-red-500 uppercase tracking-wide">Party Wiped Out</h4>
+          <UiTextHeader>Party Wiped Out</UiTextHeader>
           <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
             Tragedy strikes. The dungeon monsters completely overwhelmed your frontline. A recovery squad pulled them back unconscious. Spend gold in sanctuary to heal them.
           </p>
-          <button
-            onClick={() => setActiveScreen('guild')}
-            className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-          >
+          <UiButton className="mt-6" onClick={() => setActiveScreen('guild')}>
             Return to Guild HQ
-          </button>
+          </UiButton>
         </div>
       </div>
     );
@@ -184,12 +174,9 @@ export const DungeonRunner: React.FC = () => {
         <p className="text-xs text-stone-400 mt-1 max-w-sm text-center font-sans">
           The current expedition is missing dungeon room data. Please restart the expedition from the Guild Hall.
         </p>
-        <button
-          onClick={() => setActiveScreen('guild')}
-          className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-        >
+        <UiButton className="mt-6" onClick={() => setActiveScreen('guild')}>
           Return to Guild Hall
-        </button>
+        </UiButton>
       </div>
     );
   }
@@ -255,12 +242,9 @@ export const DungeonRunner: React.FC = () => {
         <p className="text-xs text-stone-400 mt-1 max-w-sm text-center font-sans">
           The current room data is missing. Please return to the guild and restart the expedition.
         </p>
-        <button
-          onClick={() => setActiveScreen('guild')}
-          className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-        >
+        <UiButton className="mt-6" onClick={() => setActiveScreen('guild')}>
           Return to Guild Hall
-        </button>
+        </UiButton>
       </div>
     );
   }
@@ -337,16 +321,16 @@ export const DungeonRunner: React.FC = () => {
             </button>
           </div>
 
-          <button
+          <UiButton
+            variant="danger"
             onClick={() => {
               if (confirm('Do you want to retreat? Your fainted heroes will return, but you forfeit 50% of the gathered gold!')) {
                 retreatExpedition();
               }
             }}
-            className="bg-stone-900 hover:bg-red-950/30 border border-stone-850 hover:border-red-900/30 text-stone-300 hover:text-red-400 text-xs py-1.5 px-3.5 rounded-sm uppercase tracking-wider font-bold transition-all cursor-pointer"
           >
             Retreat
-          </button>
+          </UiButton>
         </div>
       </div>
 
@@ -354,9 +338,7 @@ export const DungeonRunner: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1 min-h-0">
         {/* Left Column: Party Frame & Statistics (xl:col-span-4) */}
         <div className="xl:col-span-4 flex flex-col bg-stone-900/20 border border-stone-800 p-4 rounded-sm">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-3 font-sans">
-            Expedition Party Roster
-          </h3>
+          <UiTextHeader className="mb-3 !min-w-0">Expedition Party Roster</UiTextHeader>
 
           <div className="space-y-3 flex-1 overflow-y-auto pr-1">
             {party.map((hero) => {
@@ -457,25 +439,19 @@ export const DungeonRunner: React.FC = () => {
                 {activeRoom!.type === 'Treasure' && (
                   <div className="my-auto py-6 text-center max-w-sm mx-auto flex flex-col items-center">
                     <span className="text-6xl block animate-bounce mb-4">🎁</span>
-                    <h4 className="text-base font-bold text-stone-200 uppercase tracking-wide">Plundered Guild Vault Chest</h4>
+                    <UiTextHeader>Plundered Guild Vault Chest</UiTextHeader>
                     <p className="text-xs text-stone-400 mt-2.5 leading-relaxed font-sans">
                       A beautiful chest lay dusty in the stone slot alcove. Click to open and claim gold coin payouts and armory equipment.
                     </p>
 
                     {!expedition.activeRoomChoiceMade ? (
-                      <button
-                        onClick={proceedToNextRoom} // Treasure room claims & proceeds
-                        className="mt-6 bg-amber-900/20 text-amber-500 border border-amber-900/60 hover:bg-amber-900/40 hover:border-amber-600 font-sans font-bold py-2.5 px-6 rounded-sm text-xs uppercase tracking-widest transition shadow-lg cursor-pointer"
-                      >
+                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
                         Loot Chest & Proceed
-                      </button>
+                      </UiButton>
                     ) : (
-                      <button
-                        onClick={proceedToNextRoom}
-                        className="mt-6 bg-stone-900 hover:bg-stone-800 border border-stone-800 text-stone-300 font-sans py-2.5 px-6 rounded-sm text-xs uppercase tracking-wider transition cursor-pointer"
-                      >
+                      <UiButton className="mt-6" variant="ghost" onClick={proceedToNextRoom}>
                         Proceed Ahead
-                      </button>
+                      </UiButton>
                     )}
                   </div>
                 )}
@@ -484,7 +460,7 @@ export const DungeonRunner: React.FC = () => {
                 {activeRoom!.type === 'Campfire' && (
                   <div className="my-auto py-6 text-center max-w-md mx-auto">
                     <span className="text-5xl block mb-3 animate-pulse">🔥</span>
-                    <h4 className="text-base font-bold text-orange-400 uppercase tracking-wide">The Sanctuary Campfire</h4>
+                    <UiTextHeader>The Sanctuary Campfire</UiTextHeader>
                     <p className="text-xs text-stone-400 mt-2.5 leading-relaxed font-serif italic">
                       Pitch your canvas tents, boil dried herbs, and dress battle wounds. Select a restful strategy before moving ahead:
                     </p>
@@ -519,12 +495,9 @@ export const DungeonRunner: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={proceedToNextRoom}
-                        className="mt-6 bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                      >
+                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
                         Extinguish Fire & Proceed <ArrowRight size={14} />
-                      </button>
+                      </UiButton>
                     )}
                   </div>
                 )}
@@ -561,17 +534,13 @@ export const DungeonRunner: React.FC = () => {
                                 <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
                                   <div className="w-2 h-2 bg-amber-400 rounded-full shadow-[0_0_6px_rgba(251,191,36,0.5)]"></div> {item.price}g
                                 </span>
-                                <button
+                                <UiButton
                                   disabled={!canAfford}
                                   onClick={() => buyMerchantItem(item.id)}
-                                  className={`py-1 px-3 rounded-sm text-[9px] font-bold uppercase tracking-wider transition border cursor-pointer ${
-                                    canAfford
-                                      ? 'bg-amber-900/20 text-amber-500 border-amber-900/60 hover:bg-amber-900/40'
-                                      : 'bg-stone-900 text-stone-600 border-stone-850 cursor-not-allowed'
-                                  }`}
+                                  className="!min-w-0 !px-4 !py-1.5 !text-[9px]"
                                 >
                                   Buy
-                                </button>
+                                </UiButton>
                               </div>
                             </div>
                           );
@@ -584,12 +553,9 @@ export const DungeonRunner: React.FC = () => {
                     )}
 
                     <div className="flex justify-end pt-3 border-t border-stone-800 font-sans">
-                      <button
-                        onClick={proceedToNextRoom}
-                        className="bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                      >
+                      <UiButton onClick={proceedToNextRoom}>
                         Leave Shop & Proceed <ArrowRight size={14} />
-                      </button>
+                      </UiButton>
                     </div>
                   </div>
                 )}
@@ -657,12 +623,9 @@ export const DungeonRunner: React.FC = () => {
                           })}
                       </div>
                     ) : (
-                      <button
-                        onClick={proceedToNextRoom}
-                        className="mt-6 bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                      >
+                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
                         Bypass Trap & Proceed <ArrowRight size={14} />
-                      </button>
+                      </UiButton>
                     )}
                   </div>
                 )}
@@ -724,12 +687,9 @@ export const DungeonRunner: React.FC = () => {
                             <div className="text-xs bg-purple-950/30 text-purple-300 py-3.5 px-4 border border-purple-500/20 rounded-sm max-w-sm mb-6 leading-relaxed font-sans font-semibold uppercase tracking-wide">
                               {expedition.selectedEventOutcomeText}
                             </div>
-                            <button
-                              onClick={proceedToNextRoom}
-                              className="bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-sans font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition cursor-pointer"
-                            >
+                            <UiButton onClick={proceedToNextRoom}>
                               Collect Outcome & Proceed <ArrowRight size={14} />
-                            </button>
+                            </UiButton>
                           </div>
                         )}
                       </div>

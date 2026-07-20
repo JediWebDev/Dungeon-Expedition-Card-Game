@@ -14,6 +14,7 @@ import {
 import { Trash2 } from 'lucide-react';
 import { CharacterCard } from './CharacterCard';
 import { heroToCharacterCardData, EquipmentSlotKey } from './characterCardData';
+import { UiButton } from '../ui/UiButton';
 
 interface RosterCharacterCardProps {
   hero: Hero;
@@ -174,12 +175,9 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
           <div className="flex items-center gap-2">
             {hero.status === 'Dead' ? (
               <div className="flex-1 flex flex-col gap-1">
-                <button
-                  onClick={() => onRevive?.()}
-                  className="w-full bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-900/30 hover:border-red-600 font-bold py-1.5 px-3 rounded-sm text-[11px] uppercase tracking-widest transition shadow-md cursor-pointer"
-                >
+                <UiButton fullWidth variant="danger" onClick={() => onRevive?.()}>
                   Instant Revive ({reviveCost}g)
-                </button>
+                </UiButton>
                 <p className="text-[9px] text-stone-500 font-semibold uppercase tracking-wider text-center">
                   {autoRemaining == null
                     ? 'Sanctuary resting…'
@@ -189,19 +187,17 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
                 </p>
               </div>
             ) : hero.hp < hero.maxHp || hero.morale < 100 ? (
-              <button
-                onClick={() => onHeal?.()}
-                className="flex-1 bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-900/30 hover:border-emerald-600 font-bold py-1.5 px-3 rounded-sm text-[11px] uppercase tracking-widest transition shadow-md cursor-pointer"
-              >
+              <UiButton fullWidth onClick={() => onHeal?.()}>
                 Mend ({healCost}g)
-              </button>
+              </UiButton>
             ) : (
               <div className="flex-1 text-stone-500 text-[10px] italic font-semibold uppercase tracking-wider">
                 Fully Rested
               </div>
             )}
 
-            <button
+            <UiButton
+              variant="danger"
               onClick={() => {
                 if (
                   confirm(
@@ -211,11 +207,10 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
                   onDismiss?.();
                 }
               }}
-              className="px-2.5 py-1.5 bg-stone-900 hover:bg-red-950/40 border border-stone-850 hover:border-red-900/30 text-stone-400 hover:text-red-400 rounded-sm text-[11px] uppercase font-bold tracking-wider transition cursor-pointer"
               title="Dismiss Adventurer"
             >
               Dismiss
-            </button>
+            </UiButton>
           </div>
         </div>
       )}
