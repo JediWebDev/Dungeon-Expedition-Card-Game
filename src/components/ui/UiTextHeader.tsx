@@ -28,12 +28,12 @@ export const UiTextHeader: React.FC<UiTextHeaderProps> = ({
 }) => {
   return (
     <Tag
-      className={`relative inline-flex max-w-full items-center justify-center gap-2 bg-center bg-no-repeat px-16 py-5 text-center font-serif font-bold uppercase tracking-wide text-[#3A2A18] ${className}`}
+      className={`relative inline-flex max-w-full items-center justify-center gap-2 bg-center bg-no-repeat px-20 py-6 text-center font-serif font-bold uppercase tracking-wide text-[#3A2A18] ${className}`}
       style={{
         backgroundImage: `url(${textBoxArt})`,
         backgroundSize: '100% 100%',
-        minHeight: '3.75rem',
-        minWidth: '15rem',
+        minHeight: '4.25rem',
+        minWidth: '16rem',
         fontSize: 'clamp(0.8rem, 1.6vw, 1.05rem)',
         lineHeight: 1.2,
       }}
