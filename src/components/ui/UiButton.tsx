@@ -38,14 +38,14 @@ export const UiButton: React.FC<UiButtonProps> = ({
     <button
       type={type}
       disabled={disabled}
-      className={`relative inline-flex items-center justify-center gap-2 bg-center bg-no-repeat px-8 py-2.5 font-sans font-bold uppercase tracking-widest transition-[filter,transform,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale hover:brightness-110 active:scale-[0.98] ${VARIANT_TEXT[variant]} ${
+      className={`relative inline-flex items-center justify-center gap-2 bg-center bg-no-repeat px-10 py-3.5 font-sans font-bold uppercase tracking-widest transition-[filter,transform,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale hover:brightness-110 active:scale-[0.98] ${VARIANT_TEXT[variant]} ${
         fullWidth ? 'w-full' : ''
       } ${className}`}
       style={{
         backgroundImage: `url(${buttonArt})`,
         backgroundSize: '100% 100%',
-        minHeight: '2.5rem',
-        minWidth: '7.5rem',
+        minHeight: '3rem',
+        minWidth: '8.5rem',
         fontSize: '0.7rem',
         lineHeight: 1.1,
         border: 'none',
