@@ -15,11 +15,7 @@ import {
   Users,
   Sparkles,
   ShoppingBag,
-  ArrowUpCircle,
-  Compass,
   ArrowRight,
-  UserPlus,
-  Play
 } from 'lucide-react';
 
 export const GuildScreen: React.FC = () => {
@@ -81,25 +77,25 @@ export const GuildScreen: React.FC = () => {
           onClick={() => setActiveTab('roster')}
           variant={activeTab === 'roster' ? 'primary' : 'ghost'}
         >
-          <Users size={14} /> Roster ({guild.roster.length}/{guild.upgrades.maxRoster})
+          Roster ({guild.roster.length}/{guild.upgrades.maxRoster})
         </UiButton>
         <UiButton
           onClick={() => setActiveTab('recruit')}
           variant={activeTab === 'recruit' ? 'primary' : 'ghost'}
         >
-          <UserPlus size={14} /> Recruiting Hall ({guild.recruitStock.length})
+          Recruiting Hall ({guild.recruitStock.length})
         </UiButton>
         <UiButton
           onClick={() => setActiveTab('armory')}
           variant={activeTab === 'armory' ? 'primary' : 'ghost'}
         >
-          <ShoppingBag size={14} /> Marketplace & Vault
+          Marketplace & Vault
         </UiButton>
         <UiButton
           onClick={() => setActiveTab('upgrades')}
           variant={activeTab === 'upgrades' ? 'primary' : 'ghost'}
         >
-          <ArrowUpCircle size={14} /> Guild Chamber Upgrades
+          Guild Chamber Upgrades
         </UiButton>
       </div>
 
@@ -116,7 +112,7 @@ export const GuildScreen: React.FC = () => {
             </div>
             {idleHeroes.length > 0 && (
               <UiButton onClick={() => setShowEmbarkDrawer(true)}>
-                <Play size={14} fill="currentColor" /> Form Expedition Party
+                Form Expedition Party
               </UiButton>
             )}
           </div>
@@ -709,7 +705,7 @@ export const GuildScreen: React.FC = () => {
                     Cancel
                   </UiButton>
                   <UiButton onClick={handleEmbark} disabled={selectedPartyHeroIds.length === 0}>
-                    Embark Expedition <Compass size={14} />
+                    Embark Expedition
                   </UiButton>
                 </div>
               </div>

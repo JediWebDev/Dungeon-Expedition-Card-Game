@@ -8,9 +8,6 @@ import {
   User,
   Mail,
   KeyRound,
-  LogOut,
-  LogIn,
-  UserPlus,
   Shield,
   Wallet,
   Trash2,
@@ -192,7 +189,6 @@ function AuthForms({ onAuthChanged }: { onAuthChanged: () => void }) {
         {error && <StatusMessage kind="error" message={error} />}
 
         <UiButton type="submit" disabled={busy} fullWidth>
-          {mode === 'signIn' ? <LogIn size={14} /> : <UserPlus size={14} />}
           {busy ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
         </UiButton>
       </form>
@@ -348,7 +344,6 @@ function AccountDashboard({
           </p>
         </div>
         <UiButton type="button" onClick={handleSignOut} disabled={busy === 'signOut'} variant="ghost">
-          <LogOut size={14} />
           {busy === 'signOut' ? 'Signing out…' : 'Sign out'}
         </UiButton>
       </div>
@@ -468,7 +463,6 @@ function AccountDashboard({
           wallet support is enabled. You will be able to bind an on-chain address to this account.
         </p>
         <UiButton type="button" disabled variant="ghost">
-          <Wallet size={14} />
           Connect wallet — coming soon
         </UiButton>
       </Section>
@@ -493,7 +487,6 @@ function AccountDashboard({
             />
           </div>
           <UiButton type="submit" disabled={busy === 'delete'} variant="danger">
-            <Trash2 size={14} />
             {busy === 'delete' ? 'Deleting…' : 'Delete account'}
           </UiButton>
         </form>

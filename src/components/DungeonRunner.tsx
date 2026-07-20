@@ -18,7 +18,6 @@ import {
   ShoppingBag,
   HelpCircle,
   AlertTriangle,
-  ArrowRight,
   BookOpen
 } from 'lucide-react';
 import { UiButton } from './ui/UiButton';
@@ -496,7 +495,7 @@ export const DungeonRunner: React.FC = () => {
                       </div>
                     ) : (
                       <UiButton className="mt-6" onClick={proceedToNextRoom}>
-                        Extinguish Fire & Proceed <ArrowRight size={14} />
+                        Extinguish Fire & Proceed
                       </UiButton>
                     )}
                   </div>
@@ -537,7 +536,7 @@ export const DungeonRunner: React.FC = () => {
                                 <UiButton
                                   disabled={!canAfford}
                                   onClick={() => buyMerchantItem(item.id)}
-                                  className="!min-w-0 !px-4 !py-1.5 !text-[9px]"
+                                  className="!min-w-0 !px-4"
                                 >
                                   Buy
                                 </UiButton>
@@ -554,7 +553,7 @@ export const DungeonRunner: React.FC = () => {
 
                     <div className="flex justify-end pt-3 border-t border-stone-800 font-sans">
                       <UiButton onClick={proceedToNextRoom}>
-                        Leave Shop & Proceed <ArrowRight size={14} />
+                        Leave Shop & Proceed
                       </UiButton>
                     </div>
                   </div>
@@ -624,7 +623,7 @@ export const DungeonRunner: React.FC = () => {
                       </div>
                     ) : (
                       <UiButton className="mt-6" onClick={proceedToNextRoom}>
-                        Bypass Trap & Proceed <ArrowRight size={14} />
+                        Bypass Trap & Proceed
                       </UiButton>
                     )}
                   </div>
@@ -688,7 +687,7 @@ export const DungeonRunner: React.FC = () => {
                               {expedition.selectedEventOutcomeText}
                             </div>
                             <UiButton onClick={proceedToNextRoom}>
-                              Collect Outcome & Proceed <ArrowRight size={14} />
+                              Collect Outcome & Proceed
                             </UiButton>
                           </div>
                         )}

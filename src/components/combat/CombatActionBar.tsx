@@ -4,16 +4,15 @@
  */
 
 import React from 'react';
-import { Swords, Zap, Sparkles, Heart, ShieldCheck } from 'lucide-react';
 import { CombatActionType, CombatState, Hero, Monster } from '../../types';
 import { UiButton } from '../ui/UiButton';
 
-const ACTION_DEFS: Array<[CombatActionType, string, React.ElementType]> = [
-  ['attack', 'Attack', Swords],
-  ['skill', 'Skill', Zap],
-  ['spell', 'Spell', Sparkles],
-  ['item', 'Item', Heart],
-  ['defend', 'Defend', ShieldCheck],
+const ACTION_DEFS: Array<[CombatActionType, string]> = [
+  ['attack', 'Attack'],
+  ['skill', 'Skill'],
+  ['spell', 'Spell'],
+  ['item', 'Item'],
+  ['defend', 'Defend'],
 ];
 
 /** Does this action require an enemy to be selected before it can fire? */
@@ -67,7 +66,7 @@ export const CombatActionBar: React.FC<CombatActionBarProps> = ({
         {targetName ? ` → ${targetName}` : ' (select a foe for Attack / Skill)'}
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {ACTION_DEFS.map(([action, label, Icon]) => {
+        {ACTION_DEFS.map(([action, label]) => {
           const needsEnemy = actionNeedsEnemy(action, activeHero.heroClass);
           const needsAlly = actionNeedsAlly(action, activeHero.heroClass);
           const hasDefaultAlly = needsAlly && Boolean(pickDefaultAllyId(party, activeHero.id));
@@ -82,7 +81,7 @@ export const CombatActionBar: React.FC<CombatActionBarProps> = ({
               key={action}
               type="button"
               disabled={disabled}
-              className="!min-w-0 !px-4 !py-2 !text-[10px]"
+              className="!min-w-0 !px-5"
               onClick={() => {
                 let targetId: string | undefined;
                 if (needsEnemy) {
@@ -93,7 +92,7 @@ export const CombatActionBar: React.FC<CombatActionBarProps> = ({
                 onSubmit(action, targetId);
               }}
             >
-              <Icon size={12} /> {label}
+              {label}
             </UiButton>
           );
         })}

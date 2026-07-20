@@ -8,7 +8,7 @@ import { GameProvider, useGame } from './context/GameContext';
 import { GuildScreen } from './components/GuildScreen';
 import { DungeonRunner } from './components/DungeonRunner';
 import { AccountScreen } from './components/AccountScreen';
-import { Shield, Compass, Edit2, Check, CircleUser } from 'lucide-react';
+import { Shield, Edit2, Check } from 'lucide-react';
 import { useSession } from './lib/auth-client';
 import { UiButton } from './components/ui/UiButton';
 
@@ -146,7 +146,7 @@ function DashboardContent() {
             onClick={() => setActiveScreen('guild')}
             variant={activeScreen === 'guild' ? 'primary' : 'ghost'}
           >
-            <Shield size={14} /> Guild Headquarters
+            Guild Headquarters
           </UiButton>
 
           <UiButton
@@ -155,7 +155,6 @@ function DashboardContent() {
             disabled={!expedition}
             variant={activeScreen === 'expedition' ? 'primary' : 'ghost'}
           >
-            <Compass size={14} className={activeScreen === 'expedition' ? 'animate-pulse' : ''} />
             Campaign Gate
             {expedition && expedition.status === 'room_active' ? (
               <span className="w-2 h-2 bg-red-600 rounded-full animate-ping shrink-0" />
@@ -169,7 +168,6 @@ function DashboardContent() {
             className="md:mt-auto"
             title="Account"
           >
-            <CircleUser size={14} />
             Account
             {session?.user ? (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Signed in" />
