@@ -8,15 +8,9 @@ import { useGame } from '../context/GameContext';
 import { Portrait } from './Portrait';
 import { CombatPanel } from './combat/CombatPanel';
 import { getModifiedStats } from '../utils';
-import { DungeonRoom, Hero, Monster, Equipment } from '../types';
 import {
   Heart,
-  Swords,
-  ChevronRight,
   Sparkles,
-  Flame,
-  ShoppingBag,
-  HelpCircle,
   AlertTriangle,
   BookOpen
 } from 'lucide-react';
@@ -180,28 +174,6 @@ export const DungeonRunner: React.FC = () => {
     );
   }
 
-  // Helper for rendering room map nodes
-  const getRoomIcon = (type: DungeonRoom['type']) => {
-    switch (type) {
-      case 'Monster':
-        return <Swords size={14} className="text-rose-400" />;
-      case 'Elite Monster':
-        return <Swords size={16} className="text-red-500 animate-pulse" />;
-      case 'Boss':
-        return <Flame size={18} className="text-amber-500 animate-pulse" fill="currentColor" />;
-      case 'Treasure':
-        return <Sparkles size={14} className="text-cyan-400" />;
-      case 'Campfire':
-        return <Flame size={14} className="text-orange-400" />;
-      case 'Merchant':
-        return <ShoppingBag size={14} className="text-violet-400" />;
-      case 'Trap':
-        return <AlertTriangle size={14} className="text-amber-400" />;
-      case 'Mystery Event':
-        return <HelpCircle size={14} className="text-purple-400" fill="rgba(168,85,247,0.1)" />;
-    }
-  };
-
   // Color-coded logging text
   const getLogColorClass = (type: string) => {
     switch (type) {
@@ -250,7 +222,7 @@ export const DungeonRunner: React.FC = () => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-stone-950 animate-fade-in">
-      {/* 1. Dungeon Top Navigation & Map Nodes */}
+      {/* 1. Dungeon Top Navigation */}
       <div className={`bg-stone-900/20 ${uiSectionFrame} p-4 mb-5 flex flex-col md:flex-row justify-between items-center gap-4`}>
         <div className="text-center md:text-left">
           <h2 className="text-lg font-extrabold text-stone-100 flex items-center gap-2 justify-center md:justify-start uppercase tracking-wide">
@@ -260,34 +232,6 @@ export const DungeonRunner: React.FC = () => {
             Room <span className="text-stone-200 font-bold">{currentRoomIndex + 1}</span> of{' '}
             <span className="text-stone-200 font-bold">{dungeon.rooms?.length}</span>
           </div>
-        </div>
-
-        {/* Horizontal Map Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-2 px-4 bg-stone-950 border border-stone-850 rounded-sm shrink-1">
-          {(dungeon.rooms ?? []).map((room, i) => {
-            const isActive = i === currentRoomIndex;
-            const isCleared = i < currentRoomIndex;
-            return (
-              <React.Fragment key={room.id}>
-                {i > 0 && <ChevronRight size={10} className="text-stone-700" />}
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center border text-xs shrink-0 transition-all ${
-                    isActive
-                      ? 'border-amber-500 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.25)] scale-110 z-10'
-                      : isCleared
-                      ? 'border-stone-800 bg-stone-900 opacity-40'
-                      : 'border-stone-850 bg-stone-950 opacity-80'
-                  }`}
-                  title={`${room.name} (${room.type})`}
-                >
-                  {getRoomIcon(room.type)}
-                  {isActive && (
-                    <span className="absolute -inset-0.5 rounded-full border border-amber-500 animate-ping opacity-35" />
-                  )}
-                </div>
-              </React.Fragment>
-            );
-          })}
         </div>
 
         {/* Speed / Retreat controls */}
