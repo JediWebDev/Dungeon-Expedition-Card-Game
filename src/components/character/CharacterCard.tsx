@@ -32,6 +32,8 @@ interface CharacterCardProps {
    * (given `onSlotClick`). Useful when only some slots are backed by real gear.
    */
   interactiveSlots?: EquipmentSlotKey[];
+  /** Highlight the currently selected paperdoll slot (e.g. while the picker is open). */
+  selectedSlot?: EquipmentSlotKey | null;
   className?: string;
 }
 
@@ -65,6 +67,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   data,
   onSlotClick,
   interactiveSlots,
+  selectedSlot = null,
   className = '',
 }) => {
   const {
@@ -154,6 +157,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             y={slot.y}
             spriteUrl={containerArt}
             item={equipment[slot.key] ?? null}
+            selected={selectedSlot === slot.key}
             onClick={isInteractive ? () => onSlotClick!(slot.key) : undefined}
           />
         );

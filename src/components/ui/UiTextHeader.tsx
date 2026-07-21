@@ -17,6 +17,7 @@ interface UiTextHeaderProps {
   children: React.ReactNode;
   as?: HeaderTag;
   className?: string;
+  id?: string;
   /** Optional leading icon (rendered beside the title). */
   icon?: React.ReactNode;
 }
@@ -29,10 +30,12 @@ export const UiTextHeader: React.FC<UiTextHeaderProps> = ({
   children,
   as: Tag = 'h2',
   className = '',
+  id,
   icon,
 }) => {
   return (
     <Tag
+      id={id}
       className={`inline-flex max-w-full items-center gap-2 font-serif font-bold uppercase tracking-wide text-[#D7BF92] ${className}`}
       style={{
         fontSize: 'clamp(0.85rem, 1.5vw, 1.15rem)',
