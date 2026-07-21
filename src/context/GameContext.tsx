@@ -39,7 +39,7 @@ const EMPTY_GUILD: GuildState = {
 interface GameContextProps {
   guild: GuildState;
   expedition: ExpeditionState | null;
-  activeScreen: 'guild' | 'expedition' | 'account';
+  activeScreen: 'guild' | 'expedition' | 'account' | 'character';
   activeTab: 'roster' | 'recruit' | 'armory' | 'upgrades';
   selectedHeroId: string | null;
   hydrated: boolean;
@@ -47,7 +47,7 @@ interface GameContextProps {
   actionPending: boolean;
   /** Last action error message (cleared on next successful action). */
   lastActionError: string | null;
-  setActiveScreen: (screen: 'guild' | 'expedition' | 'account') => void;
+  setActiveScreen: (screen: 'guild' | 'expedition' | 'account' | 'character') => void;
   setActiveTab: (tab: 'roster' | 'recruit' | 'armory' | 'upgrades') => void;
   setSelectedHeroId: (id: string | null) => void;
   reloadPersistedState: () => Promise<void>;
@@ -88,7 +88,7 @@ export const useGame = () => {
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [guild, setGuild] = useState<GuildState>(EMPTY_GUILD);
   const [expedition, setExpedition] = useState<ExpeditionState | null>(null);
-  const [activeScreen, setActiveScreen] = useState<'guild' | 'expedition' | 'account'>('guild');
+  const [activeScreen, setActiveScreen] = useState<'guild' | 'expedition' | 'account' | 'character'>('guild');
   const [activeTab, setActiveTab] = useState<'roster' | 'recruit' | 'armory' | 'upgrades'>('roster');
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);

@@ -34,6 +34,11 @@ interface CharacterCardProps {
   interactiveSlots?: EquipmentSlotKey[];
   /** Highlight the currently selected paperdoll slot (e.g. while the picker is open). */
   selectedSlot?: EquipmentSlotKey | null;
+  /** Begin dragging an equipped item out of a slot. */
+  onSlotDragStart?: (slot: EquipmentSlotKey, e: React.DragEvent) => void;
+  /** Allow dropping gear onto a slot. */
+  onSlotDragOver?: (slot: EquipmentSlotKey, e: React.DragEvent) => void;
+  onSlotDrop?: (slot: EquipmentSlotKey, e: React.DragEvent) => void;
   className?: string;
 }
 
@@ -68,6 +73,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   onSlotClick,
   interactiveSlots,
   selectedSlot = null,
+  onSlotDragStart,
+  onSlotDragOver,
+  onSlotDrop,
   className = '',
 }) => {
   const {
@@ -149,6 +157,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
       {SLOT_PLACEMENTS.map((slot) => {
         const isInteractive =
           Boolean(onSlotClick) && (!interactiveSlots || interactiveSlots.includes(slot.key));
+        const item = equipment[slot.key] ?? null;
         return (
           <EquipmentSlot
             key={slot.key}
@@ -156,9 +165,17 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             x={slot.x}
             y={slot.y}
             spriteUrl={containerArt}
-            item={equipment[slot.key] ?? null}
+            item={item}
             selected={selectedSlot === slot.key}
             onClick={isInteractive ? () => onSlotClick!(slot.key) : undefined}
+            draggableItem={Boolean(onSlotDragStart && item)}
+            onDragStart={
+              onSlotDragStart && item
+                ? (e) => onSlotDragStart(slot.key, e)
+                : undefined
+            }
+            onDragOver={onSlotDragOver ? (e) => onSlotDragOver(slot.key, e) : undefined}
+            onDrop={onSlotDrop ? (e) => onSlotDrop(slot.key, e) : undefined}
           />
         );
       })}

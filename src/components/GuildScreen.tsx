@@ -26,15 +26,14 @@ export const GuildScreen: React.FC = () => {
     dismissHero,
     buyEquipment,
     sellEquipment,
-    equipItem,
-    unequipItem,
     upgradeBuilding,
     healHeroWithGold,
     reviveHero,
     activeTab,
     setActiveTab,
     selectedHeroId,
-    setSelectedHeroId
+    setSelectedHeroId,
+    setActiveScreen,
   } = useGame();
 
   // Party selection states for embarking
@@ -107,7 +106,7 @@ export const GuildScreen: React.FC = () => {
             <div>
               <UiTextHeader>Guild Members</UiTextHeader>
               <p className="text-xs text-stone-400 mt-2 font-sans">
-                Manage your guild roster, equip gear, heal wounds, and prepare expedition campaigns.
+                Click a guild member to open their equipment screen. Drag gear between the vault and their slots.
               </p>
             </div>
             {idleHeroes.length > 0 && (
@@ -135,10 +134,11 @@ export const GuildScreen: React.FC = () => {
                   hero={hero}
                   healerStation={guild.upgrades.healerStation}
                   isSelected={selectedHeroId === hero.id}
-                  guildInventory={guild.inventory}
                   onSelect={() => setSelectedHeroId(hero.id)}
-                  onEquip={(itemId, slot) => equipItem(hero.id, itemId, slot)}
-                  onUnequip={(slot) => unequipItem(hero.id, slot)}
+                  onOpenEquipment={() => {
+                    setSelectedHeroId(hero.id);
+                    setActiveScreen('character');
+                  }}
                   onHeal={() => healHeroWithGold(hero.id)}
                   onRevive={() => reviveHero(hero.id)}
                   onDismiss={() => dismissHero(hero.id)}

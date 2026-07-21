@@ -8,6 +8,8 @@ import { GameProvider, useGame } from './context/GameContext';
 import { GuildScreen } from './components/GuildScreen';
 import { DungeonRunner } from './components/DungeonRunner';
 import { AccountScreen } from './components/AccountScreen';
+import { CharacterEquipmentScreen } from './components/character/CharacterEquipmentScreen';
+import { GuildHqBackground } from './components/ui/GuildHqBackground';
 import { Shield, Edit2, Check } from 'lucide-react';
 import { useSession } from './lib/auth-client';
 import { UiButton } from './components/ui/UiButton';
@@ -27,8 +29,6 @@ function DashboardContent() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(guild.name);
 
-  // Wait for the persisted save to load before rendering the dashboard so we
-  // don't briefly show freshly-generated state that then gets replaced.
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-300 flex flex-col items-center justify-center gap-4 font-serif">
@@ -52,10 +52,10 @@ function DashboardContent() {
     void reloadPersistedState();
   };
 
-  return (
-    <div className="min-h-screen bg-stone-950 text-stone-200 flex flex-col font-serif selection:bg-amber-500/30 selection:text-amber-200 antialiased relative">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(60,40,30,0.12),transparent)] pointer-events-none z-0"></div>
+  const useHqBackground = activeScreen === 'guild' || activeScreen === 'character';
 
+  const shell = (
+    <>
       <header className="bg-stone-900/50 backdrop-blur-md border-b border-stone-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0 shadow-lg relative z-20">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-700 rounded-lg flex items-center justify-center text-stone-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)]">
@@ -121,7 +121,9 @@ function DashboardContent() {
           <div className="flex items-center gap-1.5 text-cyan-400">
             <div className="w-2.5 h-2.5 bg-cyan-400 rounded shadow-[0_0_8px_rgba(34,211,238,0.5)] rotate-45 mr-1"></div>
             <span className="text-xs text-stone-400 font-sans uppercase tracking-wider">Relics:</span>
-            <span className="text-stone-100 font-bold font-sans tracking-tight text-base">{guild.relics.length}</span>
+            <span className="text-stone-100 font-bold font-sans tracking-tight text-base">
+              {guild.relics.length}
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5 bg-stone-950 border border-stone-800 px-4 py-1.5 rounded text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.1)]">
@@ -140,11 +142,11 @@ function DashboardContent() {
       )}
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 relative z-10">
-        <nav className="w-full md:w-60 bg-stone-950 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
+        <nav className="w-full md:w-60 bg-stone-950/80 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
           <UiButton
             fullWidth
             onClick={() => setActiveScreen('guild')}
-            variant={activeScreen === 'guild' ? 'primary' : 'ghost'}
+            variant={activeScreen === 'guild' || activeScreen === 'character' ? 'primary' : 'ghost'}
           >
             Guild Headquarters
           </UiButton>
@@ -174,22 +176,34 @@ function DashboardContent() {
             ) : null}
           </UiButton>
 
-          <div className="hidden md:block pt-4 border-t border-stone-800 text-[10px] text-stone-500 leading-normal bg-stone-900/20 p-3 rounded border border-stone-800/30 font-sans">
+          <div className="hidden md:block pt-4 border-t border-stone-800 text-[10px] text-stone-500 leading-normal bg-stone-900/40 p-3 rounded border border-stone-800/30 font-sans">
             <span className="font-bold text-stone-300 block mb-1 uppercase tracking-widest font-sans">
               Manager Tip
             </span>
             {session?.user
-              ? 'Level up your blacksmith supplier in the Upgrades tab to purchase Epic and Legendary items.'
+              ? 'Click a guild member to open their equipment screen and drag gear from the vault.'
               : 'Open Account to create a login — your guild gold, roster, and expeditions will save to the database.'}
           </div>
         </nav>
 
         <main className="flex-1 flex flex-col p-4 md:p-6 min-h-0 overflow-y-auto">
           {activeScreen === 'guild' && <GuildScreen />}
+          {activeScreen === 'character' && <CharacterEquipmentScreen />}
           {activeScreen === 'expedition' && <DungeonRunner />}
           {activeScreen === 'account' && <AccountScreen onAuthChanged={handleAuthChanged} />}
         </main>
       </div>
+    </>
+  );
+
+  if (useHqBackground) {
+    return <GuildHqBackground className="font-serif selection:bg-amber-500/30 selection:text-amber-200 antialiased">{shell}</GuildHqBackground>;
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-stone-200 flex flex-col font-serif selection:bg-amber-500/30 selection:text-amber-200 antialiased relative">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(60,40,30,0.12),transparent)] pointer-events-none z-0" />
+      <div className="relative z-10 flex min-h-screen flex-col">{shell}</div>
     </div>
   );
 }

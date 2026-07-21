@@ -6,6 +6,7 @@
 import React from 'react';
 import type { EquipmentSlotData } from './characterCardData';
 import { SLOT_SIZE, cw, ch, RARITY_COLOR } from './characterCardLayout';
+import { EQUIP_DND_MIME } from './equipDnD';
 
 interface EquipmentSlotProps {
   label: string;
@@ -17,6 +18,12 @@ interface EquipmentSlotProps {
   item?: EquipmentSlotData | null;
   selected?: boolean;
   onClick?: () => void;
+  /** Allow dragging the equipped item out of this slot. */
+  draggableItem?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
 }
 
 /**
@@ -33,19 +40,38 @@ export const EquipmentSlot: React.FC<EquipmentSlotProps> = ({
   item = null,
   selected = false,
   onClick,
+  draggableItem = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragLeave,
 }) => {
   const rarityColor = item ? RARITY_COLOR[item.rarity] ?? RARITY_COLOR.common : null;
-  const interactive = Boolean(onClick);
+  const interactive = Boolean(onClick) || Boolean(onDrop);
 
   return (
     <button
       type="button"
       disabled={!interactive}
       onClick={onClick}
-      title={item ? `${label}: ${item.name}` : `${label} (empty)`}
+      draggable={Boolean(draggableItem && item && onDragStart)}
+      onDragStart={onDragStart}
+      onDragOver={(e) => {
+        if (onDragOver) {
+          onDragOver(e);
+          return;
+        }
+        if (onDrop && e.dataTransfer.types.includes(EQUIP_DND_MIME)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDrop={onDrop}
+      onDragLeave={onDragLeave}
+      title={item ? `${label}: ${item.name}` : `${label} (empty) — drop gear here`}
       className={`absolute p-0 m-0 bg-no-repeat transition-[box-shadow,transform] duration-150 ${
         interactive ? 'cursor-pointer hover:brightness-125 focus:outline-none' : 'cursor-default'
-      }`}
+      } ${draggableItem && item ? 'active:cursor-grabbing' : ''}`}
       style={{
         left: cw(x),
         top: ch(y),
