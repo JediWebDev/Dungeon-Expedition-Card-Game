@@ -105,7 +105,7 @@ export const GuildScreen: React.FC = () => {
           {/* Action Header bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-stone-900/40 p-5 rounded-sm border border-stone-800">
             <div>
-              <UiTextHeader>Hired Adventurers</UiTextHeader>
+              <UiTextHeader>Guild Members</UiTextHeader>
               <p className="text-xs text-stone-400 mt-2 font-sans">
                 Manage your guild roster, equip gear, heal wounds, and prepare expedition campaigns.
               </p>
