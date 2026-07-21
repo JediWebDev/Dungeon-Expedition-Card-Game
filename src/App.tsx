@@ -56,7 +56,7 @@ function DashboardContent() {
 
   const shell = (
     <>
-      <header className="bg-stone-900/50 backdrop-blur-md border-b border-stone-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0 shadow-lg relative z-20">
+      <header className="bg-stone-950/40 backdrop-blur-md border-b border-stone-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0 shadow-lg relative z-20">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-700 rounded-lg flex items-center justify-center text-stone-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)]">
             <Shield size={20} fill="currentColor" className="stroke-none" />
@@ -142,9 +142,10 @@ function DashboardContent() {
       )}
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 relative z-10">
-        <nav className="w-full md:w-60 bg-stone-950/80 border-r border-stone-800 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center shadow-[inset_-20px_0_30px_rgba(0,0,0,0.5)]">
+        <nav className="w-full md:w-60 bg-stone-950/55 backdrop-blur-sm border-r border-stone-800/80 md:p-4 p-3 flex md:flex-col gap-2 shrink-0 md:justify-start justify-center">
           <UiButton
             fullWidth
+            size="sm"
             onClick={() => setActiveScreen('guild')}
             variant={activeScreen === 'guild' || activeScreen === 'character' ? 'primary' : 'ghost'}
           >
@@ -153,6 +154,7 @@ function DashboardContent() {
 
           <UiButton
             fullWidth
+            size="sm"
             onClick={() => expedition && setActiveScreen('expedition')}
             disabled={!expedition}
             variant={activeScreen === 'expedition' ? 'primary' : 'ghost'}
@@ -165,6 +167,7 @@ function DashboardContent() {
 
           <UiButton
             fullWidth
+            size="sm"
             onClick={() => setActiveScreen('account')}
             variant={activeScreen === 'account' ? 'primary' : 'ghost'}
             className="md:mt-auto"

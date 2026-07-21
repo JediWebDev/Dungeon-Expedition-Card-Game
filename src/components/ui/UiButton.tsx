@@ -7,10 +7,12 @@ import React from 'react';
 import buttonArt from '../../assets/ui/button.png';
 
 type UiButtonVariant = 'primary' | 'ghost' | 'danger';
+type UiButtonSize = 'md' | 'sm';
 
 interface UiButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   variant?: UiButtonVariant;
+  size?: UiButtonSize;
   /** Stretch to full width of the parent. */
   fullWidth?: boolean;
 }
@@ -21,6 +23,21 @@ const VARIANT_TEXT: Record<UiButtonVariant, string> = {
   danger: 'text-[#E8B4A8]',
 };
 
+const SIZE_STYLES: Record<UiButtonSize, React.CSSProperties> = {
+  md: {
+    minHeight: '3.25rem',
+    minWidth: '8rem',
+    fontSize: '0.7rem',
+    padding: '0.85rem 2rem',
+  },
+  sm: {
+    minHeight: '2.5rem',
+    minWidth: '0',
+    fontSize: '0.62rem',
+    padding: '0.55rem 0.85rem',
+  },
+};
+
 /**
  * Fantasy framed action button. Uses the `button` UI asset as the chrome;
  * label color shifts slightly by variant while the frame art stays the same.
@@ -28,32 +45,36 @@ const VARIANT_TEXT: Record<UiButtonVariant, string> = {
 export const UiButton: React.FC<UiButtonProps> = ({
   children,
   variant = 'primary',
+  size = 'md',
   fullWidth = false,
   className = '',
   disabled,
   type = 'button',
+  style,
   ...rest
 }) => {
+  const sizeStyle = SIZE_STYLES[size];
+
   return (
     <button
       type={type}
       disabled={disabled}
-      className={`relative inline-flex items-center justify-center gap-2 bg-center bg-no-repeat px-12 py-5 font-sans font-bold uppercase tracking-widest transition-[filter,transform,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale hover:brightness-110 active:scale-[0.98] ${VARIANT_TEXT[variant]} ${
+      className={`relative inline-flex max-w-full items-center justify-center gap-1.5 bg-center bg-no-repeat font-sans font-bold uppercase tracking-widest transition-[filter,transform,opacity] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale hover:brightness-110 active:scale-[0.98] ${VARIANT_TEXT[variant]} ${
         fullWidth ? 'w-full' : ''
       } ${className}`}
       style={{
         backgroundImage: `url(${buttonArt})`,
         backgroundSize: '100% 100%',
-        minHeight: '4rem',
-        minWidth: '9.5rem',
-        fontSize: '0.7rem',
         lineHeight: 1.1,
         border: 'none',
         boxShadow: 'none',
+        ...sizeStyle,
+        ...(fullWidth ? { minWidth: 0 } : null),
+        ...style,
       }}
       {...rest}
     >
-      <span className="relative z-[1] flex items-center justify-center gap-1.5 whitespace-nowrap">
+      <span className="relative z-[1] flex max-w-full items-center justify-center gap-1.5 truncate">
         {children}
       </span>
     </button>

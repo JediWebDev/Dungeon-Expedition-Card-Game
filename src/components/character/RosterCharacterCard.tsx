@@ -80,7 +80,7 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
   return (
     <div
       onClick={openGear}
-      className={`group relative flex flex-col rounded-md border transition-all duration-200 cursor-pointer ${
+      className={`group relative flex min-w-0 w-full flex-col overflow-hidden rounded-md border transition-all duration-200 cursor-pointer ${
         isSelected
           ? 'border-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.2)] scale-[1.01]'
           : 'border-stone-850 hover:border-stone-700'
@@ -94,17 +94,17 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
 
       <CharacterCard data={data} className="w-full" />
 
-      <div className="mt-2 flex flex-col gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-2 flex w-full min-w-0 flex-col gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
         {canManage && (
-          <UiButton fullWidth onClick={openGear}>
+          <UiButton fullWidth size="sm" onClick={openGear}>
             Manage Gear
           </UiButton>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-2">
           {hero.status === 'Dead' ? (
-            <div className="flex-1 flex flex-col gap-1">
-              <UiButton fullWidth variant="danger" onClick={() => onRevive?.()}>
+            <div className="flex w-full min-w-0 flex-col gap-1">
+              <UiButton fullWidth size="sm" variant="danger" onClick={() => onRevive?.()}>
                 Instant Revive ({reviveCost}g)
               </UiButton>
               <p className="text-[9px] text-stone-500 font-semibold uppercase tracking-wider text-center">
@@ -116,16 +116,18 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
               </p>
             </div>
           ) : hero.hp < hero.maxHp || hero.morale < 100 ? (
-            <UiButton fullWidth onClick={() => onHeal?.()}>
+            <UiButton fullWidth size="sm" onClick={() => onHeal?.()}>
               Mend ({healCost}g)
             </UiButton>
           ) : (
-            <div className="flex-1 text-stone-500 text-[10px] italic font-semibold uppercase tracking-wider">
+            <div className="w-full text-center text-stone-500 text-[10px] italic font-semibold uppercase tracking-wider py-1">
               Fully Rested
             </div>
           )}
 
           <UiButton
+            fullWidth
+            size="sm"
             variant="danger"
             onClick={() => {
               if (

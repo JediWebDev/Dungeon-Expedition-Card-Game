@@ -71,26 +71,30 @@ export const GuildScreen: React.FC = () => {
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-transparent relative z-10">
       {/* Tab Navigation Hub */}
-      <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800 pb-4">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-800/60 pb-4">
         <UiButton
+          size="sm"
           onClick={() => setActiveTab('roster')}
           variant={activeTab === 'roster' ? 'primary' : 'ghost'}
         >
           Roster ({guild.roster.length}/{guild.upgrades.maxRoster})
         </UiButton>
         <UiButton
+          size="sm"
           onClick={() => setActiveTab('recruit')}
           variant={activeTab === 'recruit' ? 'primary' : 'ghost'}
         >
           Recruiting Hall ({guild.recruitStock.length})
         </UiButton>
         <UiButton
+          size="sm"
           onClick={() => setActiveTab('armory')}
           variant={activeTab === 'armory' ? 'primary' : 'ghost'}
         >
           Marketplace & Vault
         </UiButton>
         <UiButton
+          size="sm"
           onClick={() => setActiveTab('upgrades')}
           variant={activeTab === 'upgrades' ? 'primary' : 'ghost'}
         >
@@ -127,7 +131,7 @@ export const GuildScreen: React.FC = () => {
               <UiButton onClick={() => setActiveTab('recruit')}>Go Recruit Hall</UiButton>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pr-1 flex-1 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 overflow-y-auto overflow-x-hidden pr-1 flex-1 pb-8 min-w-0">
               {guild.roster.map((hero) => (
                 <RosterCharacterCard
                   key={hero.id}
