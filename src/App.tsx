@@ -179,8 +179,8 @@ function DashboardContent() {
             ) : null}
           </UiButton>
 
-          <div className="hidden md:block pt-4 border-t border-stone-800 text-[10px] text-stone-500 leading-normal bg-stone-900/40 p-3 rounded border border-stone-800/30 font-sans">
-            <span className="font-bold text-stone-300 block mb-1 uppercase tracking-widest font-sans">
+          <div className="hidden md:block pt-4 border-t border-stone-800 text-[10px] text-stone-300 leading-normal bg-stone-950/85 p-3 rounded-sm border border-[#D7BF92] font-sans">
+            <span className="font-bold text-[#D7BF92] block mb-1 uppercase tracking-widest font-sans">
               Manager Tip
             </span>
             {session?.user

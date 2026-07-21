@@ -25,7 +25,7 @@ import {
   deleteUser,
 } from '../lib/auth-client';
 import { UiButton } from './ui/UiButton';
-import { UiTextHeader, uiSectionFrame } from './ui/UiTextHeader';
+import { UiTextHeader, uiPanel } from './ui/UiTextHeader';
 
 type AuthMode = 'signIn' | 'signUp';
 
@@ -52,7 +52,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`bg-stone-900/40 ${uiSectionFrame} p-5 space-y-4`}>
+    <section className={`${uiPanel} p-5 space-y-4`}>
       <UiTextHeader as="h2" icon={icon} className="!min-w-0">
         {title}
       </UiTextHeader>

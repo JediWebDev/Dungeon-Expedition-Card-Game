@@ -17,7 +17,7 @@ import { heroToCharacterCardData } from './characterCardData';
 import { EQUIP_DND_MIME, readEquipDrag, writeEquipDrag } from './equipDnD';
 import { RARITY_COLOR } from './characterCardLayout';
 import { UiButton } from '../ui/UiButton';
-import { UiTextHeader, uiSectionFrame } from '../ui/UiTextHeader';
+import { UiTextHeader, uiPanel } from '../ui/UiTextHeader';
 
 const RARITY_TEXT: Record<Equipment['rarity'], string> = {
   legendary: 'text-amber-300',
@@ -103,10 +103,8 @@ export const CharacterEquipmentScreen: React.FC = () => {
 
   if (!hero || !cardData) {
     return (
-      <div
-        className={`flex flex-1 flex-col items-center justify-center gap-4 p-8 ${uiSectionFrame} bg-stone-950/70`}
-      >
-        <p className="text-sm text-stone-400 font-sans">No adventurer selected.</p>
+      <div className={`flex flex-1 flex-col items-center justify-center gap-4 p-8 ${uiPanel}`}>
+        <p className="text-sm text-stone-300 font-sans">No adventurer selected.</p>
         <UiButton onClick={() => setActiveScreen('guild')}>Back to Roster</UiButton>
       </div>
     );
@@ -182,10 +180,10 @@ export const CharacterEquipmentScreen: React.FC = () => {
 
   return (
     <div className="flex flex-1 flex-col min-h-0 gap-4 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className={`flex flex-wrap items-center justify-between gap-3 ${uiPanel} p-4`}>
+        <div className="min-w-0">
           <UiTextHeader>Character</UiTextHeader>
-          <p className="mt-1 text-xs text-stone-400 font-sans">
+          <p className="mt-2 text-xs text-stone-300 font-sans">
             Drag gear between the vault and {hero.name}&apos;s equipment slots
             {canManage ? '' : ' (locked while on expedition)'}.
           </p>
@@ -202,15 +200,13 @@ export const CharacterEquipmentScreen: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1 min-h-0">
-        <section
-          className={`xl:col-span-5 flex flex-col gap-3 bg-stone-950/80 ${uiSectionFrame} p-4 min-h-0 overflow-y-auto`}
-        >
+        <section className={`xl:col-span-5 flex flex-col gap-3 ${uiPanel} p-4 min-h-0 overflow-y-auto`}>
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-[10px] uppercase tracking-widest font-bold text-[#D7BF92] font-sans">
               Equipment
             </h3>
             {selectedSlot && (
-              <span className="text-[10px] font-sans text-stone-400">
+              <span className="text-[10px] font-sans text-stone-300">
                 Selected:{' '}
                 <span className="text-[#D7BF92]">{EQUIP_SLOT_LABELS[selectedSlot]}</span>
                 {hero.equipment[selectedSlot] ? (
@@ -261,9 +257,7 @@ export const CharacterEquipmentScreen: React.FC = () => {
           </div>
 
           {stats && (
-            <div
-              className={`mt-auto grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-sans ${uiSectionFrame} p-3 bg-stone-900/50`}
-            >
+            <div className={`mt-auto grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-sans ${uiPanel} p-3`}>
               {(
                 [
                   ['HP', `${hero.hp}/${stats.maxHp}`],
@@ -278,10 +272,10 @@ export const CharacterEquipmentScreen: React.FC = () => {
               ).map(([label, value]) => (
                 <div
                   key={label}
-                  className="flex justify-between gap-2 border-b border-stone-800/60 pb-1"
+                  className="flex justify-between gap-2 border-b border-stone-700/60 pb-1"
                 >
-                  <span className="text-stone-500 uppercase tracking-wider">{label}</span>
-                  <span className="text-stone-200 font-semibold">{value}</span>
+                  <span className="text-stone-400 uppercase tracking-wider">{label}</span>
+                  <span className="text-stone-100 font-semibold">{value}</span>
                 </div>
               ))}
             </div>
@@ -289,7 +283,7 @@ export const CharacterEquipmentScreen: React.FC = () => {
         </section>
 
         <section
-          className={`xl:col-span-7 flex flex-col gap-3 bg-stone-950/80 ${uiSectionFrame} p-4 min-h-0`}
+          className={`xl:col-span-7 flex flex-col gap-3 ${uiPanel} p-4 min-h-0`}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes(EQUIP_DND_MIME)) {
               e.preventDefault();
@@ -302,7 +296,7 @@ export const CharacterEquipmentScreen: React.FC = () => {
             <h3 className="text-[10px] uppercase tracking-widest font-bold text-[#D7BF92] font-sans">
               Inventory · Guild Vault ({guild.inventory.length})
             </h3>
-            <p className="text-[10px] text-stone-500 font-sans">
+            <p className="text-[10px] text-stone-400 font-sans">
               Drop equipped gear here to unequip
             </p>
           </div>
@@ -319,9 +313,9 @@ export const CharacterEquipmentScreen: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className={`flex-1 min-h-0 overflow-y-auto ${uiPanel} p-3`}>
             {inventory.length === 0 ? (
-              <div className="h-full min-h-[200px] flex items-center justify-center border border-dashed border-stone-700 rounded-sm text-xs text-stone-500 font-sans text-center px-4">
+              <div className="h-full min-h-[200px] flex items-center justify-center text-xs text-stone-400 font-sans text-center px-4">
                 Vault is empty for this filter.
                 <br />
                 Buy gear in Marketplace & Vault, or drop equipped items here.
@@ -349,8 +343,8 @@ export const CharacterEquipmentScreen: React.FC = () => {
                         }
                         className={`w-full text-left p-2.5 rounded-sm border transition cursor-grab active:cursor-grabbing font-sans ${
                           selected
-                            ? 'border-amber-500 bg-amber-950/30'
-                            : 'border-stone-700 bg-stone-900/70 hover:border-[#D7BF92]'
+                            ? 'border-amber-500 bg-amber-950/40'
+                            : 'border-stone-700 bg-stone-900/80 hover:border-[#D7BF92]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 mb-1">
@@ -379,7 +373,7 @@ export const CharacterEquipmentScreen: React.FC = () => {
           </div>
 
           {detailItem && (
-            <div className={`shrink-0 ${uiSectionFrame} bg-stone-900/80 p-3 font-sans`}>
+            <div className={`shrink-0 ${uiPanel} p-3 font-sans`}>
               <p className={`text-sm font-bold ${RARITY_TEXT[detailItem.rarity]}`}>
                 {detailItem.name}
               </p>
@@ -388,7 +382,7 @@ export const CharacterEquipmentScreen: React.FC = () => {
               </p>
               <p className="text-[11px] text-emerald-400 mt-1">{formatModifiers(detailItem)}</p>
               {detailItem.description ? (
-                <p className="text-[11px] text-stone-400 mt-1 leading-relaxed">
+                <p className="text-[11px] text-stone-300 mt-1 leading-relaxed">
                   {detailItem.description}
                 </p>
               ) : null}

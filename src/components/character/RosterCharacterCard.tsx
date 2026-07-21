@@ -14,6 +14,7 @@ import {
 import { CharacterCard } from './CharacterCard';
 import { heroToCharacterCardData } from './characterCardData';
 import { UiButton } from '../ui/UiButton';
+import { uiPanel } from '../ui/UiTextHeader';
 
 interface RosterCharacterCardProps {
   hero: Hero;
@@ -94,7 +95,10 @@ export const RosterCharacterCard: React.FC<RosterCharacterCardProps> = ({
 
       <CharacterCard data={data} className="w-full" />
 
-      <div className="mt-2 flex w-full min-w-0 flex-col gap-2 font-sans" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`mt-0 flex w-full min-w-0 flex-col gap-2 p-3 font-sans ${uiPanel}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {canManage && (
           <UiButton fullWidth size="sm" onClick={openGear}>
             Manage Gear

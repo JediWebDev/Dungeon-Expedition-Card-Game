@@ -25,16 +25,16 @@ const VARIANT_TEXT: Record<UiButtonVariant, string> = {
 
 const SIZE_STYLES: Record<UiButtonSize, React.CSSProperties> = {
   md: {
-    minHeight: '3.25rem',
-    minWidth: '8rem',
-    fontSize: '0.7rem',
-    padding: '0.85rem 2rem',
+    minHeight: '3.75rem',
+    minWidth: '10.5rem',
+    fontSize: '0.75rem',
+    padding: '1rem 2.5rem',
   },
   sm: {
-    minHeight: '2.5rem',
+    minHeight: '2.75rem',
     minWidth: '0',
-    fontSize: '0.62rem',
-    padding: '0.55rem 0.85rem',
+    fontSize: '0.65rem',
+    padding: '0.65rem 1.1rem',
   },
 };
 
