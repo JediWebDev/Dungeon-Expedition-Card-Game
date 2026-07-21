@@ -8,7 +8,7 @@ import { useGame } from '../context/GameContext';
 import { RosterCharacterCard } from './character/RosterCharacterCard';
 import { Portrait } from './Portrait';
 import { UiButton } from './ui/UiButton';
-import { UiTextHeader } from './ui/UiTextHeader';
+import { UiTextHeader, uiSectionFrame } from './ui/UiTextHeader';
 import { getModifiedStats } from '../utils';
 import { DUNGEON_TEMPLATES } from '../data';
 import {
@@ -103,7 +103,7 @@ export const GuildScreen: React.FC = () => {
       {activeTab === 'roster' && (
         <div className="flex flex-col flex-1 min-h-0">
           {/* Action Header bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-stone-900/40 p-5 rounded-sm border border-stone-800">
+          <div className={`flex flex-wrap items-center justify-between gap-4 mb-6 bg-stone-900/40 p-5 ${uiSectionFrame}`}>
             <div>
               <UiTextHeader>Guild Members</UiTextHeader>
               <p className="text-xs text-stone-400 mt-2 font-sans">
@@ -153,7 +153,7 @@ export const GuildScreen: React.FC = () => {
       {/* Recruiting Hall Tab */}
       {activeTab === 'recruit' && (
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="mb-6 bg-stone-900/30 p-4 border border-stone-800 rounded-sm">
+          <div className={`mb-6 bg-stone-900/30 p-4 ${uiSectionFrame}`}>
             <UiTextHeader>The Recruiting Tavern</UiTextHeader>
             <p className="text-xs text-stone-400 mt-1 font-sans">
               Hire specialized fighters, healers, and mages. Candidates auto-refresh after expeditions.
@@ -245,7 +245,7 @@ export const GuildScreen: React.FC = () => {
       {activeTab === 'armory' && (
         <div className="flex flex-col lg:flex-row flex-1 min-h-0 gap-6 pb-8">
           {/* Marketplace Buying Station (Left/Top) */}
-          <div className="flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 rounded-sm border border-stone-800">
+          <div className={`flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 ${uiSectionFrame}`}>
             <div className="mb-4">
               <UiTextHeader>Guild Merchant Bazaar</UiTextHeader>
               <p className="text-xs text-stone-400 mt-1 font-sans">
@@ -313,7 +313,7 @@ export const GuildScreen: React.FC = () => {
           </div>
 
           {/* Vault Storage Sell (Right/Bottom) */}
-          <div className="flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 rounded-sm border border-stone-800">
+          <div className={`flex-1 flex flex-col min-h-0 bg-stone-900/20 p-5 ${uiSectionFrame}`}>
             <div className="mb-4">
               <UiTextHeader>Vault Storage Box</UiTextHeader>
               <p className="text-xs text-stone-400 mt-1 font-sans">
@@ -387,7 +387,7 @@ export const GuildScreen: React.FC = () => {
       {/* Upgrades Tab */}
       {activeTab === 'upgrades' && (
         <div className="flex flex-col flex-1 min-h-0 pb-8 animate-fade-in">
-          <div className="mb-6 bg-stone-900/30 p-4 border border-stone-800 rounded-sm">
+          <div className={`mb-6 bg-stone-900/30 p-4 ${uiSectionFrame}`}>
             <UiTextHeader>Guildmaster Chamber Board</UiTextHeader>
             <p className="text-xs text-stone-400 mt-1 font-sans">
               Spend gold earned from expeditions to expand facilities, unlock better recruits, and scale your operations.
@@ -396,7 +396,7 @@ export const GuildScreen: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1 flex-1">
             {/* Upgrade 1: Roster Cap */}
-            <div className="bg-stone-900/40 border border-stone-800 p-5 rounded-sm flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md">
+            <div className={`bg-stone-900/40 ${uiSectionFrame} p-5 flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md`}>
               <div>
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Space Station Facility
@@ -441,7 +441,7 @@ export const GuildScreen: React.FC = () => {
             </div>
 
             {/* Upgrade 2: Recruit Quality */}
-            <div className="bg-stone-900/40 border border-stone-800 p-5 rounded-sm flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md">
+            <div className={`bg-stone-900/40 ${uiSectionFrame} p-5 flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md`}>
               <div>
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Human Resources Board
@@ -482,7 +482,7 @@ export const GuildScreen: React.FC = () => {
             </div>
 
             {/* Upgrade 3: Shop Quality */}
-            <div className="bg-stone-900/40 border border-stone-800 p-5 rounded-sm flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md">
+            <div className={`bg-stone-900/40 ${uiSectionFrame} p-5 flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md`}>
               <div>
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Supply Procurement Chamber
@@ -523,7 +523,7 @@ export const GuildScreen: React.FC = () => {
             </div>
 
             {/* Upgrade 4: Healer Station */}
-            <div className="bg-stone-900/40 border border-stone-800 p-5 rounded-sm flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md">
+            <div className={`bg-stone-900/40 ${uiSectionFrame} p-5 flex flex-col justify-between hover:border-amber-900/30 transition-all shadow-md`}>
               <div>
                 <span className="text-xs text-amber-500 font-sans font-bold tracking-widest block uppercase mb-1">
                   Mending & Morale Chamber
@@ -570,7 +570,7 @@ export const GuildScreen: React.FC = () => {
       {/* EMBARKATION PARTY SELECTION DRAWER MODAL */}
       {showEmbarkDrawer && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-stone-950 border border-stone-850 rounded-sm max-w-4xl w-full p-6 md:p-8 flex flex-col max-h-[90vh] shadow-2xl relative">
+          <div className={`bg-stone-950 ${uiSectionFrame} max-w-4xl w-full p-6 md:p-8 flex flex-col max-h-[90vh] shadow-2xl relative`}>
 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(60,40,30,0.1),transparent)] pointer-events-none z-0"></div>
             
             <div className="relative z-10 flex flex-col h-full min-h-0">

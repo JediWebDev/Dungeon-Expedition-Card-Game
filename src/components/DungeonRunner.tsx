@@ -21,7 +21,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { UiButton } from './ui/UiButton';
-import { UiTextHeader } from './ui/UiTextHeader';
+import { UiTextHeader, uiSectionFrame } from './ui/UiTextHeader';
 
 export const DungeonRunner: React.FC = () => {
   const {
@@ -251,7 +251,7 @@ export const DungeonRunner: React.FC = () => {
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-stone-950 animate-fade-in">
       {/* 1. Dungeon Top Navigation & Map Nodes */}
-      <div className="bg-stone-900/20 border border-stone-800 p-4 rounded-sm mb-5 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className={`bg-stone-900/20 ${uiSectionFrame} p-4 mb-5 flex flex-col md:flex-row justify-between items-center gap-4`}>
         <div className="text-center md:text-left">
           <h2 className="text-lg font-extrabold text-stone-100 flex items-center gap-2 justify-center md:justify-start uppercase tracking-wide">
             🏰 Expedition: <span className="text-amber-500">{dungeon.name}</span>
@@ -336,7 +336,7 @@ export const DungeonRunner: React.FC = () => {
       {/* 2. Main Expedition Content Area */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1 min-h-0">
         {/* Left Column: Party Frame & Statistics (xl:col-span-4) */}
-        <div className="xl:col-span-4 flex flex-col bg-stone-900/20 border border-stone-800 p-4 rounded-sm">
+        <div className={`xl:col-span-4 flex flex-col bg-stone-900/20 ${uiSectionFrame} p-4`}>
           <UiTextHeader className="mb-3 !min-w-0">Expedition Party Roster</UiTextHeader>
 
           <div className="space-y-3 flex-1 overflow-y-auto pr-1">
@@ -411,7 +411,7 @@ export const DungeonRunner: React.FC = () => {
         {/* Center Column: Active Room Scene Board (xl:col-span-8) */}
         <div className="xl:col-span-8 flex flex-col min-h-0 gap-5">
           {/* Active Chamber Sandbox */}
-          <div className="flex-1 flex flex-col justify-between bg-stone-900/20 border border-stone-800 p-5 rounded-sm relative overflow-y-auto">
+          <div className={`flex-1 flex flex-col justify-between bg-stone-900/20 ${uiSectionFrame} p-5 relative overflow-y-auto`}>
             {/* Header info */}
             <div className="mb-4">
               <span className="text-[9px] uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-1 rounded-sm font-bold border border-amber-500/20">
@@ -702,7 +702,7 @@ export const DungeonRunner: React.FC = () => {
           </div>
 
           {/* Scrolling Expedition Logger Board */}
-          <div className="bg-stone-900/20 border border-stone-800 p-4 rounded-sm flex flex-col min-h-[160px] max-h-[220px]">
+          <div className={`bg-stone-900/20 ${uiSectionFrame} p-4 flex flex-col min-h-[160px] max-h-[220px]`}>
             <h4 className="text-[10px] uppercase font-bold tracking-widest text-stone-500 mb-2 border-b border-stone-850/60 pb-1 flex justify-between items-center font-sans">
               <span>Expedition Battle Log Console</span>
               {combatMode === 'auto' && !expedition?.activeRoomChoiceMade && (

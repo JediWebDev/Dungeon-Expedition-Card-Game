@@ -4,7 +4,12 @@
  */
 
 import React from 'react';
-import textBoxArt from '../../assets/ui/text_box.png';
+
+/** Shared frame color for section / text outlines. */
+export const UI_FRAME_COLOR = '#D7BF92';
+
+/** Crisp 1px frame for panels that hold headers or body text. */
+export const uiSectionFrame = 'border border-[#D7BF92] rounded-sm';
 
 type HeaderTag = 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'div';
 
@@ -12,13 +17,13 @@ interface UiTextHeaderProps {
   children: React.ReactNode;
   as?: HeaderTag;
   className?: string;
-  /** Optional leading icon (rendered inside the banner). */
+  /** Optional leading icon (rendered beside the title). */
   icon?: React.ReactNode;
 }
 
 /**
- * Ornate text banner for section titles. Uses the `Text box` UI asset as a
- * 9-slice-friendly background that stretches with the label.
+ * Section title — clean responsive type with no bitmap chrome.
+ * Pair with `uiSectionFrame` on the surrounding panel for the gold outline.
  */
 export const UiTextHeader: React.FC<UiTextHeaderProps> = ({
   children,
@@ -28,18 +33,14 @@ export const UiTextHeader: React.FC<UiTextHeaderProps> = ({
 }) => {
   return (
     <Tag
-      className={`relative inline-flex max-w-full items-center justify-center gap-2 bg-center bg-no-repeat px-20 py-6 text-center font-serif font-bold uppercase tracking-wide text-[#3A2A18] ${className}`}
+      className={`inline-flex max-w-full items-center gap-2 font-serif font-bold uppercase tracking-wide text-[#D7BF92] ${className}`}
       style={{
-        backgroundImage: `url(${textBoxArt})`,
-        backgroundSize: '100% 100%',
-        minHeight: '4.25rem',
-        minWidth: '16rem',
-        fontSize: 'clamp(0.8rem, 1.6vw, 1.05rem)',
-        lineHeight: 1.2,
+        fontSize: 'clamp(0.85rem, 1.5vw, 1.15rem)',
+        lineHeight: 1.25,
       }}
     >
-      {icon ? <span className="shrink-0 opacity-90">{icon}</span> : null}
-      <span className="relative z-[1] truncate">{children}</span>
+      {icon ? <span className="shrink-0 text-[#D7BF92]">{icon}</span> : null}
+      <span className="truncate">{children}</span>
     </Tag>
   );
 };
