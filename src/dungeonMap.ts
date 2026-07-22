@@ -40,15 +40,22 @@ export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
     throw new Error('Cannot build a dungeon map with zero rooms.');
   }
 
-  const nodes: DungeonMapNode[] = rooms.map((room, i) => ({
-    id: `node_${room.id}`,
-    roomId: room.id,
-    x: i,
-    y: 0,
-    visibility: visibilityForRoomStatus(room.status),
-  }));
+  // Snake layout so the path reads like a floor plan (not a single straight line).
+  const COLS = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(rooms.length * 1.4))));
+  const nodes: DungeonMapNode[] = rooms.map((room, i) => {
+    const row = Math.floor(i / COLS);
+    const colInRow = i % COLS;
+    const x = row % 2 === 0 ? colInRow : COLS - 1 - colInRow;
+    return {
+      id: `node_${room.id}`,
+      roomId: room.id,
+      x,
+      y: row,
+      visibility: visibilityForRoomStatus(room.status),
+    };
+  });
 
-  // Reveal the start and its immediate neighbor (fog prep for Phase 2).
+  // Reveal the start and its immediate neighbor.
   nodes[0].visibility = 'visited';
   if (nodes[1] && nodes[1].visibility === 'hidden') {
     nodes[1].visibility = 'revealed';
@@ -73,12 +80,35 @@ export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
   };
 }
 
-/** Attach a linear map when missing (new runs always generate one). */
+/** Attach a linear map when missing; upgrade flat Phase-1 paths to snake layout. */
 export function ensureDungeonMap(dungeon: Dungeon): Dungeon {
   const rooms = dungeon.rooms ?? [];
   if (rooms.length === 0) return dungeon;
-  if (dungeon.map?.nodes?.length) return dungeon;
-  return { ...dungeon, map: buildLinearDungeonMap(rooms) };
+  if (!dungeon.map?.nodes?.length) {
+    return { ...dungeon, map: buildLinearDungeonMap(rooms) };
+  }
+
+  const map = dungeon.map;
+  const isFlatLine = map.nodes.length > 3 && map.nodes.every((n) => n.y === 0);
+  if (!isFlatLine) return dungeon;
+
+  const rebuilt = buildLinearDungeonMap(rooms);
+  const oldVis = new Map<string, MapNodeVisibility>(
+    map.nodes.map((n) => [n.roomId, n.visibility])
+  );
+  return {
+    ...dungeon,
+    map: {
+      ...rebuilt,
+      nodes: rebuilt.nodes.map((n): DungeonMapNode => ({
+        id: n.id,
+        roomId: n.roomId,
+        x: n.x,
+        y: n.y,
+        visibility: oldVis.get(n.roomId) ?? n.visibility,
+      })),
+    },
+  };
 }
 
 export function getMap(expedition: ExpeditionState): DungeonMap | null {
@@ -216,9 +246,47 @@ export function migrateExpeditionMap(exp: ExpeditionState): ExpeditionState {
   if (!currentNodeId && map) {
     currentNodeId = getNodeForRoomIndex(map, dungeon.rooms ?? [], exp.currentRoomIndex)?.id;
   }
+
+  // Re-sync fog from room statuses so mid-run saves look correct on the map.
+  let syncedDungeon = dungeon;
+  if (map) {
+    const rooms = dungeon.rooms ?? [];
+    const roomById = new Map(rooms.map((r) => [r.id, r]));
+    const currentIdx = rooms.findIndex((r) => {
+      const node = map.nodes.find((n) => n.id === currentNodeId);
+      return node ? r.id === node.roomId : false;
+    });
+    const nextNodes: DungeonMapNode[] = map.nodes.map((n) => {
+      const room = roomById.get(n.roomId);
+      if (!room) return n;
+      if (room.status === 'cleared' || room.status === 'active') {
+        return { ...n, visibility: 'visited' as const };
+      }
+      const roomIndex = rooms.findIndex((r) => r.id === n.roomId);
+      if (currentIdx >= 0 && roomIndex === currentIdx + 1) {
+        return { ...n, visibility: 'revealed' as const };
+      }
+      const fog: MapNodeVisibility = n.visibility === 'revealed' ? 'revealed' : 'hidden';
+      return { ...n, visibility: fog };
+    });
+    syncedDungeon = { ...dungeon, map: { ...map, nodes: nextNodes } };
+  }
+
   return {
     ...exp,
-    dungeon,
+    dungeon: syncedDungeon,
     currentNodeId: currentNodeId ?? map?.startNodeId,
   };
+}
+
+export function countVisitedNodes(map: DungeonMap): number {
+  return map.nodes.filter((n) => n.visibility === 'visited').length;
+}
+
+export function isEdgeVisible(map: DungeonMap, edge: DungeonMapEdge): boolean {
+  const from = getNodeById(map, edge.fromNodeId);
+  const to = getNodeById(map, edge.toNodeId);
+  if (!from || !to) return false;
+  // Show a corridor if either end is known; hidden↔hidden stays in the fog.
+  return from.visibility !== 'hidden' || to.visibility !== 'hidden';
 }

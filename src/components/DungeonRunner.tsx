@@ -16,6 +16,13 @@ import {
 } from 'lucide-react';
 import { UiButton } from './ui/UiButton';
 import { UiTextHeader, uiSectionFrame } from './ui/UiTextHeader';
+import { DungeonMapPanel } from './dungeon/DungeonMapPanel';
+import {
+  countVisitedNodes,
+  ensureDungeonMap,
+  resolveActiveRoom,
+  resolveCurrentNodeId,
+} from '../dungeonMap';
 
 export const DungeonRunner: React.FC = () => {
   const {
@@ -47,7 +54,18 @@ export const DungeonRunner: React.FC = () => {
   const goldEarned = expedition?.goldEarned ?? 0;
   const lootEarned = expedition?.lootEarned ?? { equipment: [], relics: [] };
   const speed = expedition?.speed ?? 1;
-  const activeRoom = dungeon?.rooms?.[currentRoomIndex];
+  let activeRoom = dungeon?.rooms?.[currentRoomIndex];
+  if (expedition) {
+    try {
+      activeRoom = resolveActiveRoom(expedition);
+    } catch {
+      /* keep index fallback */
+    }
+  }
+  const currentNodeId = expedition ? resolveCurrentNodeId(expedition) : undefined;
+  const mapDungeon = dungeon ? ensureDungeonMap(dungeon) : undefined;
+  const visitedCount = mapDungeon?.map ? countVisitedNodes(mapDungeon.map) : currentRoomIndex + 1;
+  const totalChambers = mapDungeon?.map?.nodes.length ?? dungeon?.rooms?.length ?? 0;
   const activeRoomType = activeRoom?.type;
   const activeRoomChoiceMade = expedition?.activeRoomChoiceMade ?? false;
   const combat = expedition?.combat ?? null;
@@ -223,14 +241,22 @@ export const DungeonRunner: React.FC = () => {
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-stone-950 animate-fade-in">
       {/* 1. Dungeon Top Navigation */}
-      <div className={`bg-stone-900/20 ${uiSectionFrame} p-4 mb-5 flex flex-col md:flex-row justify-between items-center gap-4`}>
+      <div className={`bg-stone-900/20 ${uiSectionFrame} p-4 mb-4 flex flex-col md:flex-row justify-between items-center gap-4`}>
         <div className="text-center md:text-left">
           <h2 className="text-lg font-extrabold text-stone-100 flex items-center gap-2 justify-center md:justify-start uppercase tracking-wide">
             🏰 Expedition: <span className="text-amber-500">{dungeon.name}</span>
           </h2>
           <div className="text-xs text-stone-400 mt-1 font-sans font-semibold">
-            Room <span className="text-stone-200 font-bold">{currentRoomIndex + 1}</span> of{' '}
-            <span className="text-stone-200 font-bold">{dungeon.rooms?.length}</span>
+            Chambers explored{' '}
+            <span className="text-stone-200 font-bold">{visitedCount}</span>
+            {' / '}
+            <span className="text-stone-200 font-bold">{totalChambers}</span>
+            {activeRoom ? (
+              <>
+                {' · '}
+                <span className="text-[#D7BF92]">{activeRoom.name}</span>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -276,6 +302,15 @@ export const DungeonRunner: React.FC = () => {
           </UiButton>
         </div>
       </div>
+
+      {/* 1b. Fog-of-war dungeon map */}
+      {mapDungeon && (
+        <DungeonMapPanel
+          dungeon={mapDungeon}
+          currentNodeId={currentNodeId}
+          className="mb-4 shrink-0"
+        />
+      )}
 
       {/* 2. Main Expedition Content Area */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 flex-1 min-h-0">
