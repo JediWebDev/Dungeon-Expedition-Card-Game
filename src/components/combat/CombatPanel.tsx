@@ -8,6 +8,11 @@ import { ArrowRight } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { DungeonRoom, ExpeditionState, GuildState } from '../../types';
 import { getModifiedStats } from '../../utils';
+import {
+  ensureDungeonMap,
+  getNeighborNodeIds,
+  resolveCurrentNodeId,
+} from '../../dungeonMap';
 import { CombatUnitCard } from './CombatUnitCard';
 import { CombatActionBar } from './CombatActionBar';
 
@@ -31,6 +36,13 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({ expedition, guild, act
   const activeHero =
     activeTurnEntry?.side === 'hero' ? party.find((h) => h.id === activeTurnEntry.id) ?? null : null;
   const roomResolved = Boolean(expedition.activeRoomChoiceMade);
+  const isBoss = activeRoom.type === 'Boss';
+  const map = ensureDungeonMap(expedition.dungeon).map;
+  const currentNodeId = resolveCurrentNodeId(expedition);
+  const neighborCount =
+    map && currentNodeId ? getNeighborNodeIds(map, currentNodeId).length : 1;
+  const hasMultiplePaths = neighborCount > 1;
+  const canAutoProceed = isBoss || !hasMultiplePaths;
 
   // Clear the selected target whenever the turn changes, so a stale target
   // from the last hero's turn can't leak into the next one.
@@ -162,12 +174,18 @@ export const CombatPanel: React.FC<CombatPanelProps> = ({ expedition, guild, act
 
       {roomResolved && (
         <div className="pt-4 mt-4 border-t border-stone-800 flex justify-end font-sans">
-          <button
-            onClick={proceedToNextRoom}
-            className="bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition flex items-center gap-2 active:scale-95 shadow-md cursor-pointer"
-          >
-            Chamber Secured: Proceed <ArrowRight size={14} />
-          </button>
+          {canAutoProceed ? (
+            <button
+              onClick={proceedToNextRoom}
+              className="bg-emerald-900/20 text-emerald-500 border border-emerald-900/60 hover:bg-emerald-900/40 hover:border-emerald-600 font-bold py-2 px-6 rounded-sm text-xs uppercase tracking-widest transition flex items-center gap-2 active:scale-95 shadow-md cursor-pointer"
+            >
+              {isBoss ? 'Claim Expedition Victory' : 'Chamber Secured: Proceed'} <ArrowRight size={14} />
+            </button>
+          ) : (
+            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-500/90">
+              Chamber secured — choose a highlighted path on the map
+            </p>
+          )}
         </div>
       )}
     </div>

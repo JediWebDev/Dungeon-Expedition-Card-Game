@@ -4,9 +4,8 @@
  */
 
 /**
- * Dungeon graph helpers (Phase 1).
- * Navigation is still a single path, but rooms live on a node/edge map so later
- * phases can add branching, fog UI, movement points, and locked doors.
+ * Dungeon graph helpers (Phases 1–3).
+ * Branching maps, fog of war, and movement-point navigation.
  */
 
 import type {
@@ -17,30 +16,220 @@ import type {
   DungeonRoom,
   ExpeditionState,
   MapNodeVisibility,
+  RoomType,
 } from './types';
-import { generateDungeonRooms, generateId } from './utils';
+import {
+  createDungeonRoom,
+  defaultMovementBudget,
+  generateId,
+  pickRegularRoomType,
+} from './utils';
+
+const MOVE_COST = 1;
+const CAMPFIRE_MP_RESTORE = 3;
 
 function visibilityForRoomStatus(status: DungeonRoom['status']): MapNodeVisibility {
   if (status === 'cleared' || status === 'active') return 'visited';
   return 'hidden';
 }
 
-/** Rooms + linear path map (branching comes in later phases). */
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function cellKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+/** Rooms + branching map (Phase 3). */
 export function generateDungeonLayout(
   totalRooms: number,
   dangerRating: number
 ): { rooms: DungeonRoom[]; map: DungeonMap } {
-  const rooms = generateDungeonRooms(totalRooms, dangerRating);
-  return { rooms, map: buildLinearDungeonMap(rooms) };
+  return buildBranchingDungeon(Math.max(4, totalRooms), dangerRating);
 }
 
-/** Build a degenerate path graph A → B → … → Boss from a linear room list. */
+/**
+ * Main spine toward the boss + optional side branches.
+ * Corridors are undirected for movement (stored as from→to edges).
+ */
+function buildBranchingDungeon(
+  totalRooms: number,
+  dangerRating: number
+): { rooms: DungeonRoom[]; map: DungeonMap } {
+  type Slot = {
+    x: number;
+    y: number;
+    parentIndex: number | null;
+    role: 'start' | 'main' | 'boss' | 'branch';
+  };
+
+  const mainLen =
+    totalRooms <= 5
+      ? totalRooms
+      : Math.max(4, Math.min(totalRooms - 1, Math.ceil(totalRooms * 0.62)));
+
+  const slots: Slot[] = [];
+  const occupied = new Set<string>();
+
+  for (let i = 0; i < mainLen; i++) {
+    const x = i;
+    const y = 0;
+    occupied.add(cellKey(x, y));
+    slots.push({
+      x,
+      y,
+      parentIndex: i === 0 ? null : i - 1,
+      role: i === 0 ? 'start' : i === mainLen - 1 ? 'boss' : 'main',
+    });
+  }
+
+  let remaining = totalRooms - mainLen;
+  const dirs: Array<[number, number]> = [
+    [0, -1],
+    [0, 1],
+    [1, 0],
+    [-1, 0],
+  ];
+
+  const tryAttach = (
+    hostIndex: number,
+    preferExtend: boolean,
+    perpendicularOnly: boolean
+  ): boolean => {
+    const host = slots[hostIndex];
+    if (!host) return false;
+    const candidateDirs = perpendicularOnly
+      ? ([
+          [0, -1],
+          [0, 1],
+        ] as Array<[number, number]>)
+      : dirs;
+    const order = shuffleInPlace([...candidateDirs]);
+    for (const [dx, dy] of order) {
+      const nx = host.x + dx;
+      const ny = host.y + dy;
+      if (occupied.has(cellKey(nx, ny))) continue;
+      occupied.add(cellKey(nx, ny));
+      const newIndex = slots.length;
+      slots.push({ x: nx, y: ny, parentIndex: hostIndex, role: 'branch' });
+      remaining--;
+
+      if (preferExtend && remaining > 0 && Math.random() > 0.4) {
+        const nx2 = nx + dx;
+        const ny2 = ny + dy;
+        if (!occupied.has(cellKey(nx2, ny2))) {
+          occupied.add(cellKey(nx2, ny2));
+          slots.push({ x: nx2, y: ny2, parentIndex: newIndex, role: 'branch' });
+          remaining--;
+        }
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Prefer branching off mid-spine rooms (not start/boss), perpendicular to the spine.
+  const spineHosts = slots
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.role === 'main')
+    .map(({ i }) => i);
+  shuffleInPlace(spineHosts);
+
+  let guard = 0;
+  while (remaining > 0 && guard++ < 200) {
+    if (spineHosts.length > 0 && Math.random() > 0.2) {
+      const hostIndex = spineHosts[Math.floor(Math.random() * spineHosts.length)]!;
+      if (tryAttach(hostIndex, true, true)) continue;
+    }
+    // Fall back: grow from existing branch tips (any direction).
+    const branchHosts = slots
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => s.role === 'branch')
+      .map(({ i }) => i);
+    shuffleInPlace(branchHosts);
+    let placed = false;
+    for (const hostIndex of [...branchHosts, ...spineHosts]) {
+      const host = slots[hostIndex]!;
+      if (tryAttach(hostIndex, remaining > 1, host.role !== 'branch')) {
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) break;
+  }
+
+  // Type assignment: start, boss, guaranteed campfire on spine, rest weighted.
+  const types: RoomType[] = slots.map((slot) => {
+    if (slot.role === 'start') return Math.random() > 0.5 ? 'Treasure' : 'Monster';
+    if (slot.role === 'boss') return 'Boss';
+    return pickRegularRoomType();
+  });
+
+  const mainIndices = slots
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.role === 'main')
+    .map(({ i }) => i);
+  if (mainIndices.length > 0 && !types.some((t) => t === 'Campfire')) {
+    const campIdx = mainIndices[Math.floor(mainIndices.length / 2)]!;
+    types[campIdx] = 'Campfire';
+  }
+
+  const rooms: DungeonRoom[] = slots.map((slot, i) =>
+    createDungeonRoom(types[i]!, dangerRating, i, i === 0 ? 'active' : 'upcoming')
+  );
+
+  const nodes: DungeonMapNode[] = slots.map((slot, i) => ({
+    id: `node_${rooms[i]!.id}`,
+    roomId: rooms[i]!.id,
+    x: slot.x,
+    y: slot.y,
+    visibility: visibilityForRoomStatus(rooms[i]!.status),
+  }));
+
+  nodes[0]!.visibility = 'visited';
+
+  const edges: DungeonMapEdge[] = [];
+  for (let i = 0; i < slots.length; i++) {
+    const parent = slots[i]!.parentIndex;
+    if (parent == null) continue;
+    edges.push({
+      id: generateId(),
+      fromNodeId: nodes[parent]!.id,
+      toNodeId: nodes[i]!.id,
+      locked: false,
+      requiredKeyId: null,
+    });
+  }
+
+  // Reveal all neighbors of the start.
+  for (const nid of getNeighborNodeIds({ nodes, edges, startNodeId: nodes[0]!.id, bossNodeId: nodes[mainLen - 1]!.id }, nodes[0]!.id)) {
+    const n = nodes.find((x) => x.id === nid);
+    if (n && n.visibility === 'hidden') n.visibility = 'revealed';
+  }
+
+  const bossSlotIndex = slots.findIndex((s) => s.role === 'boss');
+  return {
+    rooms,
+    map: {
+      nodes,
+      edges,
+      startNodeId: nodes[0]!.id,
+      bossNodeId: nodes[bossSlotIndex >= 0 ? bossSlotIndex : nodes.length - 1]!.id,
+    },
+  };
+}
+
+/** Build a degenerate path graph A → B → … → Boss (legacy / migration). */
 export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
   if (rooms.length === 0) {
     throw new Error('Cannot build a dungeon map with zero rooms.');
   }
 
-  // Snake layout so the path reads like a floor plan (not a single straight line).
   const COLS = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(rooms.length * 1.4))));
   const nodes: DungeonMapNode[] = rooms.map((room, i) => {
     const row = Math.floor(i / COLS);
@@ -55,8 +244,7 @@ export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
     };
   });
 
-  // Reveal the start and its immediate neighbor.
-  nodes[0].visibility = 'visited';
+  nodes[0]!.visibility = 'visited';
   if (nodes[1] && nodes[1].visibility === 'hidden') {
     nodes[1].visibility = 'revealed';
   }
@@ -65,8 +253,8 @@ export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
   for (let i = 0; i < nodes.length - 1; i++) {
     edges.push({
       id: generateId(),
-      fromNodeId: nodes[i].id,
-      toNodeId: nodes[i + 1].id,
+      fromNodeId: nodes[i]!.id,
+      toNodeId: nodes[i + 1]!.id,
       locked: false,
       requiredKeyId: null,
     });
@@ -75,12 +263,12 @@ export function buildLinearDungeonMap(rooms: DungeonRoom[]): DungeonMap {
   return {
     nodes,
     edges,
-    startNodeId: nodes[0].id,
-    bossNodeId: nodes[nodes.length - 1].id,
+    startNodeId: nodes[0]!.id,
+    bossNodeId: nodes[nodes.length - 1]!.id,
   };
 }
 
-/** Attach a linear map when missing; upgrade flat Phase-1 paths to snake layout. */
+/** Attach a map when missing; upgrade flat Phase-1 paths to snake layout. */
 export function ensureDungeonMap(dungeon: Dungeon): Dungeon {
   const rooms = dungeon.rooms ?? [];
   if (rooms.length === 0) return dungeon;
@@ -89,6 +277,7 @@ export function ensureDungeonMap(dungeon: Dungeon): Dungeon {
   }
 
   const map = dungeon.map;
+  // Flat Phase-1 line only (branching maps place side rooms off y=0).
   const isFlatLine = map.nodes.length > 3 && map.nodes.every((n) => n.y === 0);
   if (!isFlatLine) return dungeon;
 
@@ -100,13 +289,15 @@ export function ensureDungeonMap(dungeon: Dungeon): Dungeon {
     ...dungeon,
     map: {
       ...rebuilt,
-      nodes: rebuilt.nodes.map((n): DungeonMapNode => ({
-        id: n.id,
-        roomId: n.roomId,
-        x: n.x,
-        y: n.y,
-        visibility: oldVis.get(n.roomId) ?? n.visibility,
-      })),
+      nodes: rebuilt.nodes.map(
+        (n): DungeonMapNode => ({
+          id: n.id,
+          roomId: n.roomId,
+          x: n.x,
+          y: n.y,
+          visibility: oldVis.get(n.roomId) ?? n.visibility,
+        })
+      ),
     },
   };
 }
@@ -124,7 +315,11 @@ export function getNodeById(map: DungeonMap, nodeId: string): DungeonMapNode | u
   return map.nodes.find((n) => n.id === nodeId);
 }
 
-export function getNodeForRoomIndex(map: DungeonMap, rooms: DungeonRoom[], index: number): DungeonMapNode | undefined {
+export function getNodeForRoomIndex(
+  map: DungeonMap,
+  rooms: DungeonRoom[],
+  index: number
+): DungeonMapNode | undefined {
   const room = rooms[index];
   if (!room) return undefined;
   return map.nodes.find((n) => n.roomId === room.id);
@@ -164,19 +359,60 @@ export function resolveCurrentNodeId(expedition: ExpeditionState): string | unde
   return node?.id;
 }
 
-/** Single outgoing edge from a node on a path map (Phase 1). */
+/** Directed outgoing edges (generation order). */
 export function getOutgoingEdges(map: DungeonMap, nodeId: string): DungeonMapEdge[] {
   return map.edges.filter((e) => e.fromNodeId === nodeId);
 }
 
+/** Bidirectional neighbors for movement. */
+export function getNeighborNodeIds(map: DungeonMap, nodeId: string): string[] {
+  const ids: string[] = [];
+  for (const e of map.edges) {
+    if (e.locked) continue;
+    if (e.fromNodeId === nodeId) ids.push(e.toNodeId);
+    else if (e.toNodeId === nodeId) ids.push(e.fromNodeId);
+  }
+  return ids;
+}
+
+export function getEdgeBetween(
+  map: DungeonMap,
+  a: string,
+  b: string
+): DungeonMapEdge | undefined {
+  return map.edges.find(
+    (e) =>
+      (e.fromNodeId === a && e.toNodeId === b) || (e.fromNodeId === b && e.toNodeId === a)
+  );
+}
+
+/** Single outgoing edge convenience (legacy linear maps). */
 export function getNextNodeId(map: DungeonMap, currentNodeId: string): string | null {
+  const neighbors = getNeighborNodeIds(map, currentNodeId);
+  if (neighbors.length === 1) return neighbors[0]!;
+  // Prefer a not-yet-visited forward edge if any.
   const outgoing = getOutgoingEdges(map, currentNodeId);
-  return outgoing[0]?.toNodeId ?? null;
+  const unvisitedOut = outgoing.find((e) => {
+    const n = getNodeById(map, e.toNodeId);
+    return n && n.visibility !== 'visited';
+  });
+  return unvisitedOut?.toNodeId ?? outgoing[0]?.toNodeId ?? neighbors[0] ?? null;
+}
+
+export function revealNeighbors(map: DungeonMap, nodeId: string): DungeonMapNode[] {
+  const neighborIds = new Set(getNeighborNodeIds(map, nodeId));
+  return map.nodes.map((n) => {
+    if (n.id === nodeId) return { ...n, visibility: 'visited' as const };
+    if (neighborIds.has(n.id) && n.visibility === 'hidden') {
+      return { ...n, visibility: 'revealed' as const };
+    }
+    return n;
+  });
 }
 
 /**
- * Mark the previous room/node cleared, activate the next, reveal the following
- * neighbor, and keep `currentRoomIndex` / `currentNodeId` aligned.
+ * Mark the previous room cleared, activate the destination, reveal its neighbors,
+ * and keep `currentRoomIndex` / `currentNodeId` aligned.
  */
 export function advanceAlongPath(
   expedition: ExpeditionState,
@@ -189,6 +425,12 @@ export function advanceAlongPath(
   const nextNode = getNodeById(map, nextNodeId);
   if (!nextNode) throw new Error('Next map node not found.');
 
+  if (currentNodeId) {
+    const edge = getEdgeBetween(map, currentNodeId, nextNodeId);
+    if (!edge) throw new Error('Destination is not adjacent.');
+    if (edge.locked) throw new Error('That corridor is locked.');
+  }
+
   const nextRoomIndex = rooms.findIndex((r) => r.id === nextNode.roomId);
   if (nextRoomIndex < 0) throw new Error('Next room not found for map node.');
 
@@ -197,20 +439,24 @@ export function advanceAlongPath(
     : rooms[expedition.currentRoomIndex]?.id;
 
   const nextRooms = rooms.map((r) => {
-    if (currentRoomId && r.id === currentRoomId) return { ...r, status: 'cleared' as const };
-    if (r.id === nextNode.roomId) return { ...r, status: 'active' as const };
+    if (currentRoomId && r.id === currentRoomId) {
+      // Revisit: keep cleared if already cleared; otherwise mark cleared when leaving.
+      if (r.status === 'cleared') return r;
+      return { ...r, status: 'cleared' as const };
+    }
+    if (r.id === nextNode.roomId) {
+      if (r.status === 'cleared') return r; // revisiting a cleared chamber
+      return { ...r, status: 'active' as const };
+    }
     return r;
   });
 
-  const followingId = getNextNodeId(map, nextNodeId);
-  const nextNodes = map.nodes.map((n) => {
-    if (currentNodeId && n.id === currentNodeId) return { ...n, visibility: 'visited' as const };
-    if (n.id === nextNodeId) return { ...n, visibility: 'visited' as const };
-    if (followingId && n.id === followingId && n.visibility === 'hidden') {
-      return { ...n, visibility: 'revealed' as const };
-    }
-    return n;
-  });
+  let nextNodes = revealNeighbors(map, nextNodeId);
+  if (currentNodeId) {
+    nextNodes = nextNodes.map((n) =>
+      n.id === currentNodeId ? { ...n, visibility: 'visited' as const } : n
+    );
+  }
 
   return {
     dungeon: {
@@ -238,7 +484,37 @@ export function updateActiveRoom(
   };
 }
 
-/** Upgrade a legacy expedition snapshot to include map + currentNodeId. */
+function syncFogFromProgress(
+  map: DungeonMap,
+  rooms: DungeonRoom[],
+  currentNodeId: string | undefined
+): DungeonMapNode[] {
+  const roomById = new Map(rooms.map((r) => [r.id, r]));
+  const visitedIds = new Set<string>();
+  for (const n of map.nodes) {
+    const room = roomById.get(n.roomId);
+    if (room && (room.status === 'cleared' || room.status === 'active')) {
+      visitedIds.add(n.id);
+    }
+  }
+  if (currentNodeId) visitedIds.add(currentNodeId);
+
+  const revealedIds = new Set<string>();
+  for (const id of visitedIds) {
+    for (const nid of getNeighborNodeIds(map, id)) {
+      if (!visitedIds.has(nid)) revealedIds.add(nid);
+    }
+  }
+
+  return map.nodes.map((n) => {
+    if (visitedIds.has(n.id)) return { ...n, visibility: 'visited' as const };
+    if (revealedIds.has(n.id)) return { ...n, visibility: 'revealed' as const };
+    const fog: MapNodeVisibility = n.visibility === 'revealed' ? 'revealed' : 'hidden';
+    return { ...n, visibility: fog };
+  });
+}
+
+/** Upgrade a legacy expedition snapshot to include map + currentNodeId + MP. */
 export function migrateExpeditionMap(exp: ExpeditionState): ExpeditionState {
   const dungeon = ensureDungeonMap(exp.dungeon);
   const map = dungeon.map;
@@ -247,35 +523,22 @@ export function migrateExpeditionMap(exp: ExpeditionState): ExpeditionState {
     currentNodeId = getNodeForRoomIndex(map, dungeon.rooms ?? [], exp.currentRoomIndex)?.id;
   }
 
-  // Re-sync fog from room statuses so mid-run saves look correct on the map.
   let syncedDungeon = dungeon;
   if (map) {
-    const rooms = dungeon.rooms ?? [];
-    const roomById = new Map(rooms.map((r) => [r.id, r]));
-    const currentIdx = rooms.findIndex((r) => {
-      const node = map.nodes.find((n) => n.id === currentNodeId);
-      return node ? r.id === node.roomId : false;
-    });
-    const nextNodes: DungeonMapNode[] = map.nodes.map((n) => {
-      const room = roomById.get(n.roomId);
-      if (!room) return n;
-      if (room.status === 'cleared' || room.status === 'active') {
-        return { ...n, visibility: 'visited' as const };
-      }
-      const roomIndex = rooms.findIndex((r) => r.id === n.roomId);
-      if (currentIdx >= 0 && roomIndex === currentIdx + 1) {
-        return { ...n, visibility: 'revealed' as const };
-      }
-      const fog: MapNodeVisibility = n.visibility === 'revealed' ? 'revealed' : 'hidden';
-      return { ...n, visibility: fog };
-    });
+    const nextNodes = syncFogFromProgress(map, dungeon.rooms ?? [], currentNodeId);
     syncedDungeon = { ...dungeon, map: { ...map, nodes: nextNodes } };
   }
+
+  const roomCount = dungeon.rooms?.length ?? dungeon.totalRooms ?? 8;
+  const maxMp = exp.maxMovementPoints ?? defaultMovementBudget(roomCount);
+  const mp = exp.movementPoints ?? maxMp;
 
   return {
     ...exp,
     dungeon: syncedDungeon,
     currentNodeId: currentNodeId ?? map?.startNodeId,
+    movementPoints: mp,
+    maxMovementPoints: maxMp,
   };
 }
 
@@ -287,6 +550,28 @@ export function isEdgeVisible(map: DungeonMap, edge: DungeonMapEdge): boolean {
   const from = getNodeById(map, edge.fromNodeId);
   const to = getNodeById(map, edge.toNodeId);
   if (!from || !to) return false;
-  // Show a corridor if either end is known; hidden↔hidden stays in the fog.
   return from.visibility !== 'hidden' || to.visibility !== 'hidden';
 }
+
+export function getMovementPoints(expedition: ExpeditionState): {
+  current: number;
+  max: number;
+} {
+  const roomCount = expedition.dungeon.rooms?.length ?? expedition.dungeon.totalRooms ?? 8;
+  const max = expedition.maxMovementPoints ?? defaultMovementBudget(roomCount);
+  const current = expedition.movementPoints ?? max;
+  return { current, max };
+}
+
+export function restoreMovementPoints(
+  expedition: ExpeditionState,
+  amount: number = CAMPFIRE_MP_RESTORE
+): Pick<ExpeditionState, 'movementPoints' | 'maxMovementPoints'> {
+  const { current, max } = getMovementPoints(expedition);
+  return {
+    movementPoints: Math.min(max, current + amount),
+    maxMovementPoints: max,
+  };
+}
+
+export { MOVE_COST, CAMPFIRE_MP_RESTORE };

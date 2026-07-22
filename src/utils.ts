@@ -221,118 +221,117 @@ export function generateMonster(tier: 'common' | 'elite' | 'boss'): Monster {
   };
 }
 
-// Build standard procedural rooms map for a selected dungeon layout
+/** Weighted pick for non-start / non-boss chambers. */
+export function pickRegularRoomType(): RoomType {
+  const roll = Math.random();
+  if (roll > 0.85) return 'Elite Monster';
+  if (roll > 0.70) return 'Mystery Event';
+  if (roll > 0.55) return 'Trap';
+  if (roll > 0.40) return 'Treasure';
+  if (roll > 0.30) return 'Campfire';
+  if (roll > 0.20) return 'Merchant';
+  return 'Monster';
+}
+
+/** Build a single dungeon room of the given type (shared by linear + branching generators). */
+export function createDungeonRoom(
+  type: RoomType,
+  dangerRating: number,
+  index: number,
+  status: DungeonRoom['status'] = 'upcoming'
+): DungeonRoom {
+  let name = `Room ${index + 1}`;
+  let description = 'A dusty narrow hallway.';
+  let monsterGroup: Monster[] = [];
+  let mysteryEvent: MysteryEvent | undefined;
+  let treasureLoot: DungeonRoom['treasureLoot'];
+
+  if (type === 'Monster') {
+    name = `Shadow Corridor ${index + 1}`;
+    description = 'You hear growling echoes and scurrying footsteps in the darkness ahead.';
+    const count = dangerRating >= 3 && Math.random() > 0.4 ? 2 : 1;
+    for (let c = 0; c < count; c++) {
+      monsterGroup.push(generateMonster('common'));
+    }
+  } else if (type === 'Elite Monster') {
+    name = `Ominous Chamber ${index + 1}`;
+    description = 'A massive demonic silhouette guards a heavy iron gates door.';
+    monsterGroup.push(generateMonster('elite'));
+    if (dangerRating >= 4 && Math.random() > 0.5) {
+      monsterGroup.push(generateMonster('common'));
+    }
+  } else if (type === 'Boss') {
+    name = 'The Abyssal Sanctum';
+    description =
+      'The air thickens with smoke and heavy magical energy. The master of this vault awaits your arrival.';
+    monsterGroup.push(generateMonster('boss'));
+  } else if (type === 'Treasure') {
+    name = 'Hidden Vault Altar';
+    description = 'A dusty golden chest lies on a stone pedestal, waiting to be looted.';
+    const gold = Math.round((70 + Math.random() * 80) * dangerRating);
+    let equipment: Equipment | undefined;
+    if (Math.random() > 0.40) {
+      equipment = generateRandomEquipment(dangerRating);
+    }
+    treasureLoot = { gold, equipment };
+  } else if (type === 'Campfire') {
+    name = 'Sacred Safe Campfire';
+    description =
+      'A warm draft ventilates this dry cave chamber. A perfect spot to pitch a tent and mend wounds.';
+  } else if (type === 'Merchant') {
+    name = 'Wandering Cart Merchant';
+    description =
+      'A shady hooded figure sits atop a packed carriage. "Greetings, managers! Got some gold?"';
+  } else if (type === 'Trap') {
+    name = 'Riddle Trap corridor';
+    description = 'Hidden pressure plates or toxic swinging blades line the narrow brick tunnel.';
+  } else if (type === 'Mystery Event') {
+    name = 'Echoes of the Past';
+    description = "An unpredictable narrative event challenges your party's resolve.";
+    const randomEvent =
+      MYSTERY_EVENTS_CATALOG[Math.floor(Math.random() * MYSTERY_EVENTS_CATALOG.length)];
+    mysteryEvent = JSON.parse(JSON.stringify(randomEvent));
+  }
+
+  return {
+    id: generateId(),
+    index,
+    type,
+    name,
+    description,
+    status,
+    monsterGroup,
+    mysteryEvent,
+    treasureLoot,
+  };
+}
+
+/** Legacy linear room list (kept for tests / callers that only need rooms). */
 export function generateDungeonRooms(
   totalRooms: number,
   dangerRating: number
 ): DungeonRoom[] {
   const rooms: DungeonRoom[] = [];
 
-  // Determine possible room types
-  const regularTypes: RoomType[] = [
-    'Monster', 'Monster', 'Treasure', 'Campfire', 'Trap', 'Mystery Event', 'Merchant'
-  ];
-
   for (let i = 0; i < totalRooms; i++) {
     let type: RoomType = 'Monster';
-    let name = `Room ${i + 1}`;
-    let description = 'A dusty narrow hallway.';
-
     if (i === 0) {
-      // First room is always a lightweight warmup fight or simple treasure
       type = Math.random() > 0.5 ? 'Treasure' : 'Monster';
     } else if (i === totalRooms - 1) {
-      // Final room is ALWAYS the Boss
       type = 'Boss';
     } else if (i === Math.floor(totalRooms / 2)) {
-      // Middle room is a Campfire for healing
       type = 'Campfire';
     } else {
-      // Procedurally select based on danger and random dice
-      const roll = Math.random();
-      if (roll > 0.85) {
-        type = 'Elite Monster';
-      } else if (roll > 0.70) {
-        type = 'Mystery Event';
-      } else if (roll > 0.55) {
-        type = 'Trap';
-      } else if (roll > 0.40) {
-        type = 'Treasure';
-      } else if (roll > 0.30) {
-        type = 'Campfire';
-      } else if (roll > 0.20) {
-        type = 'Merchant';
-      } else {
-        type = 'Monster';
-      }
+      type = pickRegularRoomType();
     }
 
-    // Custom names and descriptions based on types
-    let monsterGroup: Monster[] = [];
-    let mysteryEvent: MysteryEvent | undefined;
-    let treasureLoot: DungeonRoom['treasureLoot'];
-
-    if (type === 'Monster') {
-      name = `Shadow Corridor ${i + 1}`;
-      description = 'You hear growling echoes and scurrying footsteps in the darkness ahead.';
-      // 1-2 common monsters based on danger rating
-      const count = dangerRating >= 3 && Math.random() > 0.4 ? 2 : 1;
-      for (let c = 0; c < count; c++) {
-        monsterGroup.push(generateMonster('common'));
-      }
-    } else if (type === 'Elite Monster') {
-      name = `Ominous Chamber ${i + 1}`;
-      description = 'A massive demonic silhouette guards a heavy iron gates door.';
-      monsterGroup.push(generateMonster('elite'));
-      // Sometimes an extra companion
-      if (dangerRating >= 4 && Math.random() > 0.5) {
-        monsterGroup.push(generateMonster('common'));
-      }
-    } else if (type === 'Boss') {
-      name = 'The Abyssal Sanctum';
-      description = 'The air thickens with smoke and heavy magical energy. The master of this vault awaits your arrival.';
-      monsterGroup.push(generateMonster('boss'));
-    } else if (type === 'Treasure') {
-      name = 'Hidden Vault Altar';
-      description = 'A dusty golden chest lies on a stone pedestal, waiting to be looted.';
-      // Gold reward scales with dungeon rating
-      const gold = Math.round((70 + Math.random() * 80) * dangerRating);
-      // Chance of random gear
-      let equipment: Equipment | undefined;
-      if (Math.random() > 0.40) {
-        equipment = generateRandomEquipment(dangerRating);
-      }
-      treasureLoot = { gold, equipment };
-    } else if (type === 'Campfire') {
-      name = 'Sacred Safe Campfire';
-      description = 'A warm draft ventilates this dry cave chamber. A perfect spot to pitch a tent and mend wounds.';
-    } else if (type === 'Merchant') {
-      name = 'Wandering Cart Merchant';
-      description = 'A shady hooded figure sits atop a packed carriage. "Greetings, managers! Got some gold?"';
-    } else if (type === 'Trap') {
-      name = 'Riddle Trap corridor';
-      description = 'Hidden pressure plates or toxic swinging blades line the narrow brick tunnel.';
-    } else if (type === 'Mystery Event') {
-      name = 'Echoes of the Past';
-      description = 'An unpredictable narrative event challenges your party\'s resolve.';
-      // Pull random mystery event from catalog
-      const randomEvent = MYSTERY_EVENTS_CATALOG[Math.floor(Math.random() * MYSTERY_EVENTS_CATALOG.length)];
-      // Clone it to avoid state pollution
-      mysteryEvent = JSON.parse(JSON.stringify(randomEvent));
-    }
-
-    rooms.push({
-      id: generateId(),
-      index: i,
-      type,
-      name,
-      description,
-      status: i === 0 ? 'active' : 'upcoming',
-      monsterGroup,
-      mysteryEvent,
-      treasureLoot
-    });
+    rooms.push(createDungeonRoom(type, dangerRating, i, i === 0 ? 'active' : 'upcoming'));
   }
 
   return rooms;
+}
+
+/** Suggested movement budget for a dungeon of the given size. */
+export function defaultMovementBudget(totalRooms: number): number {
+  return Math.max(8, Math.ceil(totalRooms * 1.35));
 }

@@ -292,11 +292,15 @@ export interface ExpeditionState {
   party: Hero[];
   /**
    * Linear index into `dungeon.rooms` — kept for display/compat.
-   * Prefer `currentNodeId` for navigation; they stay in sync on a path map.
+   * Prefer `currentNodeId` for navigation; they stay in sync on the map graph.
    */
   currentRoomIndex: number;
   /** Active map node id. Migrated from `currentRoomIndex` for older saves. */
   currentNodeId?: string;
+  /** Remaining corridor moves this expedition (Phase 3). */
+  movementPoints?: number;
+  /** Starting / cap for movement points (campfire restores up toward this). */
+  maxMovementPoints?: number;
   status: 'planning' | 'running' | 'room_active' | 'victory' | 'defeat' | 'retreat';
   logs: CombatLog[];
   goldEarned: number;

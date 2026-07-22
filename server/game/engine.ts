@@ -28,16 +28,20 @@ import {
   generateId,
   generateRandomEquipment,
   generateRandomHero,
-  getModifiedStats
+  getModifiedStats,
+  defaultMovementBudget,
 } from '../../src/utils';
 import {
   advanceAlongPath,
   ensureDungeonMap,
   generateDungeonLayout,
-  getNextNodeId,
+  getMovementPoints,
+  getNeighborNodeIds,
+  MOVE_COST,
   resolveActiveRoom,
   resolveActiveRoomIndex,
   resolveCurrentNodeId,
+  restoreMovementPoints,
 } from '../../src/dungeonMap';
 import { DUNGEON_TEMPLATES, RELICS_POOL } from '../../src/data';
 import {
@@ -217,6 +221,8 @@ export function applyGameAction(state: GameSnapshot, action: GameAction): GameSn
     case 'proceedToNextRoom':
     case 'claimTreasureAndProceed':
       return handleProceedToNextRoom(guild, expedition);
+    case 'moveToNode':
+      return handleMoveToNode(guild, expedition, action);
     case 'advanceCombat':
       return handleAdvanceCombat(guild, expedition);
     case 'submitCombatAction':
@@ -481,10 +487,11 @@ function handleStartExpedition(
   const expeditionParty = party.map((h) => ({ ...h, status: 'Expedition' as const }));
   const { rooms, map } = generateDungeonLayout(template.totalRooms, template.dangerRating);
   const configuredDungeon: Dungeon = { ...template, rooms, map };
+  const maxMovementPoints = defaultMovementBudget(rooms.length);
 
   const firstLog: CombatLog = {
     id: generateId(),
-    text: `🏰 The Guild starts an expedition into "${template.name}" with a party of ${expeditionParty.length} heroes!`,
+    text: `🏰 The Guild starts an expedition into "${template.name}" with a party of ${expeditionParty.length} heroes! (${maxMovementPoints} movement points)`,
     type: 'info',
     timestamp: Date.now()
   };
@@ -500,6 +507,8 @@ function handleStartExpedition(
     party: expeditionParty,
     currentRoomIndex: 0,
     currentNodeId: map.startNodeId,
+    movementPoints: maxMovementPoints,
+    maxMovementPoints,
     status: 'room_active',
     logs: [firstLog],
     goldEarned: 0,
@@ -606,19 +615,51 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
   }
 
   const activeIndex = resolveActiveRoomIndex(expedition);
-  // Treasure rooms auto-claim their loot on proceed (Merchant/other room types have nothing to claim).
   const workingExpedition = claimTreasureIfAny(expedition, activeIndex);
+
+  // Cleared boss: claim victory (exploration of side paths is via the map instead).
+  if (activeRoom.type === 'Boss' && workingExpedition.activeRoomChoiceMade) {
+    return settleExpeditionVictory(guild, workingExpedition, activeIndex + 1);
+  }
 
   const dungeon = ensureDungeonMap(workingExpedition.dungeon);
   const map = dungeon.map;
   const currentNodeId = resolveCurrentNodeId({ ...workingExpedition, dungeon });
 
   if (map && currentNodeId) {
-    const nextNodeId = getNextNodeId(map, currentNodeId);
-    if (!nextNodeId) {
-      return settleExpeditionVictory(guild, workingExpedition, activeIndex + 1);
+    const neighbors = getNeighborNodeIds(map, currentNodeId);
+    if (neighbors.length === 0) {
+      throw new GameActionError('No corridors lead from this chamber. Retreat if you cannot continue.');
     }
-    return advanceToNode(guild, { ...workingExpedition, dungeon }, nextNodeId);
+    if (neighbors.length > 1) {
+      // Persist treasure claim (if any) without moving — player picks a path on the map.
+      const claimedSomething =
+        workingExpedition.goldEarned !== expedition.goldEarned ||
+        workingExpedition.lootEarned.equipment.length !== expedition.lootEarned.equipment.length ||
+        workingExpedition.lootEarned.relics.length !== expedition.lootEarned.relics.length;
+      if (claimedSomething || !workingExpedition.activeRoomChoiceMade) {
+        const forkLog: CombatLog = {
+          id: generateId(),
+          text: '🛤️ Multiple corridors branch from here — choose your next chamber on the dungeon map.',
+          type: 'info',
+          timestamp: Date.now(),
+        };
+        return {
+          guild,
+          expedition: {
+            ...workingExpedition,
+            activeRoomChoiceMade: true,
+            logs: claimedSomething
+              ? [...workingExpedition.logs, forkLog]
+              : workingExpedition.logs.some((l) => l.text.includes('Multiple corridors'))
+                ? workingExpedition.logs
+                : [...workingExpedition.logs, forkLog],
+          },
+        };
+      }
+      throw new GameActionError('Multiple paths ahead — choose a chamber on the dungeon map.');
+    }
+    return advanceToNode(guild, { ...workingExpedition, dungeon }, neighbors[0]!);
   }
 
   // Legacy fallback: pure index walk
@@ -629,6 +670,46 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
   return isFinished
     ? settleExpeditionVictory(guild, workingExpedition, nextIndex)
     : advanceToRoom(guild, workingExpedition, nextIndex);
+}
+
+function handleMoveToNode(
+  guild: GuildState,
+  expedition: ExpeditionState | null,
+  action: ActionOf<'moveToNode'>
+): GameSnapshot {
+  if (!expedition) throw new GameActionError('No active expedition.');
+  if (expedition.status !== 'room_active') throw new GameActionError('Cannot move right now.');
+
+  const activeRoom = getActiveRoom(expedition);
+  const needsChoiceFirst = COMBAT_ROOM_TYPES.includes(activeRoom.type) || CHOICE_ROOM_TYPES.includes(activeRoom.type);
+  if (needsChoiceFirst && !expedition.activeRoomChoiceMade) {
+    throw new GameActionError('You must resolve this room before moving on.');
+  }
+
+  const activeIndex = resolveActiveRoomIndex(expedition);
+  const workingExpedition = claimTreasureIfAny(expedition, activeIndex);
+
+  const dungeon = ensureDungeonMap(workingExpedition.dungeon);
+  const map = dungeon.map;
+  if (!map) throw new GameActionError('Dungeon map is missing.', 500);
+
+  const currentNodeId = resolveCurrentNodeId({ ...workingExpedition, dungeon });
+  if (!currentNodeId) throw new GameActionError('Current map position is unknown.', 500);
+  if (action.nodeId === currentNodeId) {
+    throw new GameActionError('You are already in that chamber.');
+  }
+
+  const neighbors = getNeighborNodeIds(map, currentNodeId);
+  if (!neighbors.includes(action.nodeId)) {
+    throw new GameActionError('That chamber is not connected to your current position.');
+  }
+
+  const { current: mp } = getMovementPoints(workingExpedition);
+  if (mp < MOVE_COST) {
+    throw new GameActionError('No movement points left. Rest at a campfire or retreat.');
+  }
+
+  return advanceToNode(guild, { ...workingExpedition, dungeon }, action.nodeId);
 }
 
 function settleExpeditionVictory(guild: GuildState, expedition: ExpeditionState, nextIndex: number): GameSnapshot {
@@ -706,9 +787,15 @@ function advanceToNode(guild: GuildState, expedition: ExpeditionState, nextNodeI
   const nextRoomObj = (progressed.dungeon.rooms ?? [])[progressed.currentRoomIndex];
   if (!nextRoomObj) throw new GameActionError('Unable to advance to the next room.', 500);
 
+  const { current: mp, max: maxMp } = getMovementPoints(expedition);
+  const nextMp = Math.max(0, mp - MOVE_COST);
+  const revisiting = nextRoomObj.status === 'cleared';
+
   const transitionLog: CombatLog = {
     id: generateId(),
-    text: `🚶 Party enters "${nextRoomObj.name}": ${nextRoomObj.description}`,
+    text: revisiting
+      ? `🚶 Party returns to "${nextRoomObj.name}" (−${MOVE_COST} MP, ${nextMp} left).`
+      : `🚶 Party enters "${nextRoomObj.name}": ${nextRoomObj.description} (−${MOVE_COST} MP, ${nextMp} left).`,
     type: 'info',
     timestamp: Date.now()
   };
@@ -723,13 +810,19 @@ function advanceToNode(guild: GuildState, expedition: ExpeditionState, nextNodeI
     ...expedition,
     ...progressed,
     status: 'room_active',
+    movementPoints: nextMp,
+    maxMovementPoints: maxMp,
     logs: [...expedition.logs, transitionLog],
     combatRound: 1,
-    activeRoomChoiceMade: false,
+    activeRoomChoiceMade: revisiting,
     selectedEventOutcomeText: undefined,
-    merchantItemsStock: merchantStock,
+    merchantItemsStock: revisiting ? expedition.merchantItemsStock : merchantStock,
     combat: null,
   };
+
+  if (revisiting) {
+    return { guild, expedition: nextExpedition };
+  }
 
   return { guild, expedition: prepareRoomCombat(guild, nextExpedition) };
 }
@@ -1042,8 +1135,20 @@ function handleCampfireChoiceAction(
 
   logs.unshift({ id: generateId(), text: textMsg, type: 'heal', timestamp: Date.now() });
 
+  const mpRestore = restoreMovementPoints(expedition);
+  const restored = (mpRestore.movementPoints ?? 0) - getMovementPoints(expedition).current;
+  if (restored > 0) {
+    logs.push({
+      id: generateId(),
+      text: `🥾 The rest restores ${restored} movement point${restored === 1 ? '' : 's'} (${mpRestore.movementPoints}/${mpRestore.maxMovementPoints}).`,
+      type: 'info',
+      timestamp: Date.now(),
+    });
+  }
+
   const nextExpedition: ExpeditionState = {
     ...expedition,
+    ...mpRestore,
     party: updatedParty,
     activeRoomChoiceMade: true,
     logs: [...expedition.logs, ...logs]

@@ -64,6 +64,7 @@ interface GameContextProps {
   startExpedition: (dungeonId: string, partyHeroIds: string[]) => void;
   retreatExpedition: () => void;
   proceedToNextRoom: () => void;
+  moveToNode: (nodeId: string) => void;
   advanceCombat: () => void;
   submitCombatAction: (
     action: 'attack' | 'skill' | 'spell' | 'item' | 'defend',
@@ -222,6 +223,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       runAction({ type: 'startExpedition', dungeonId, partyHeroIds }, { openExpedition: true }),
     retreatExpedition: () => runAction({ type: 'retreatExpedition' }),
     proceedToNextRoom: () => runAction({ type: 'proceedToNextRoom' }),
+    moveToNode: (nodeId) => runAction({ type: 'moveToNode', nodeId }),
     advanceCombat: () => runAction({ type: 'advanceCombat' }),
     submitCombatAction: (action, targetId) =>
       runAction({ type: 'submitCombatAction', action, targetId }),

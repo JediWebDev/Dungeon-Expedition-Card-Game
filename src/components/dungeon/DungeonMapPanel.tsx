@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { Dungeon, DungeonMap, DungeonMapNode, DungeonRoom, RoomType } from '../../types';
+import type { Dungeon, DungeonMapNode, DungeonRoom, RoomType } from '../../types';
 import {
   ensureDungeonMap,
   getNodeById,
@@ -57,21 +57,31 @@ function roomSizeForType(type: RoomType | undefined, visibility: DungeonMapNode[
 interface DungeonMapPanelProps {
   dungeon: Dungeon;
   currentNodeId?: string | null;
+  /** Adjacent node ids the party can move to right now. */
+  movableNodeIds?: string[];
+  onMoveToNode?: (nodeId: string) => void;
+  movementPoints?: number;
+  maxMovementPoints?: number;
   className?: string;
 }
 
 /**
  * Top-down fog-of-war dungeon map. Hidden nodes are omitted; revealed nodes are
- * blank silhouettes; visited nodes show room type. Corridors only appear when
- * at least one endpoint is known.
+ * blank silhouettes; visited nodes show room type. Click highlighted neighbors
+ * to spend a movement point and travel.
  */
 export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
   dungeon: rawDungeon,
   currentNodeId,
+  movableNodeIds = [],
+  onMoveToNode,
+  movementPoints,
+  maxMovementPoints,
   className = '',
 }) => {
   const dungeon = useMemo(() => ensureDungeonMap(rawDungeon), [rawDungeon]);
   const map = dungeon.map;
+  const movable = useMemo(() => new Set(movableNodeIds), [movableNodeIds]);
 
   const layout = useMemo(() => {
     if (!map) return null;
@@ -90,6 +100,8 @@ export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
     );
   }
 
+  const showMp = typeof movementPoints === 'number' && typeof maxMovementPoints === 'number';
+
   return (
     <div className={`${uiPanel} flex flex-col min-h-0 ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-[#D7BF92]/30">
@@ -97,11 +109,16 @@ export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
           Dungeon Map
         </h3>
         <div className="flex flex-wrap gap-3 text-[9px] font-sans text-stone-400 uppercase tracking-wider">
+          {showMp && (
+            <span className="text-[#D7BF92] font-bold normal-case tracking-wide">
+              Movement {movementPoints}/{maxMovementPoints}
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#D7BF92]" /> You are here
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#5a5550]" /> Explored
+            <span className="inline-block w-2.5 h-2.5 rounded-sm border border-emerald-500/80 bg-emerald-900/40" /> Can move
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#2a2826] border border-stone-600" /> Scouted
@@ -118,10 +135,8 @@ export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
           role="img"
           aria-label="Dungeon floor plan with fog of war"
         >
-          {/* Fog backdrop */}
           <rect x={0} y={0} width={layout.width} height={layout.height} fill="#0c0b0a" />
 
-          {/* Corridors */}
           {map.edges.filter((e) => isEdgeVisible(map, e)).map((edge) => {
             const from = getNodeById(map, edge.fromNodeId);
             const to = getNodeById(map, edge.toNodeId);
@@ -137,11 +152,11 @@ export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
             );
           })}
 
-          {/* Rooms */}
           {map.nodes.map((node) => {
             if (node.visibility === 'hidden') return null;
             const room = getRoomById(dungeon, node.roomId);
             const isCurrent = node.id === currentNodeId;
+            const canMove = movable.has(node.id);
             return (
               <RoomNode
                 key={node.id}
@@ -149,6 +164,8 @@ export const DungeonMapPanel: React.FC<DungeonMapPanelProps> = ({
                 room={room}
                 isCurrent={isCurrent}
                 isBoss={map.bossNodeId === node.id}
+                canMove={canMove}
+                onSelect={canMove && onMoveToNode ? () => onMoveToNode(node.id) : undefined}
               />
             );
           })}
@@ -174,7 +191,6 @@ function Corridor({
   const fill = locked ? '#6b4a2a' : dimmed ? '#2a2826' : '#4a4640';
   const stroke = locked ? '#D7BF92' : '#6a655c';
 
-  // Orthogonal corridor: horizontal then vertical (L) when needed.
   if (a.cx === b.cx || a.cy === b.cy) {
     const x = Math.min(a.cx, b.cx) - CORRIDOR_THICK / 2;
     const y = Math.min(a.cy, b.cy) - CORRIDOR_THICK / 2;
@@ -230,11 +246,15 @@ function RoomNode({
   room,
   isCurrent,
   isBoss,
+  canMove,
+  onSelect,
 }: {
   node: DungeonMapNode;
   room: DungeonRoom | undefined;
   isCurrent: boolean;
   isBoss: boolean;
+  canMove: boolean;
+  onSelect?: () => void;
 }) {
   const size = roomSizeForType(room?.type, node.visibility);
   const { cx, cy } = roomCenter(node);
@@ -242,17 +262,40 @@ function RoomNode({
   const y = cy - size / 2;
   const revealedOnly = node.visibility === 'revealed';
   const fill = revealedOnly ? '#2a2826' : ROOM_FILL[room?.type ?? 'Monster'] ?? '#3a3834';
-  const stroke = isCurrent ? '#D7BF92' : revealedOnly ? '#5a5550' : '#8a8073';
-  const strokeWidth = isCurrent ? 3 : isBoss && !revealedOnly ? 2.5 : 1.5;
+  const stroke = isCurrent
+    ? '#D7BF92'
+    : canMove
+      ? '#6ee7b7'
+      : revealedOnly
+        ? '#5a5550'
+        : '#8a8073';
+  const strokeWidth = isCurrent || canMove ? 3 : isBoss && !revealedOnly ? 2.5 : 1.5;
   const label = revealedOnly ? '?' : ROOM_GLYPH[room?.type ?? 'Monster'] ?? '·';
-  const title = revealedOnly
-    ? 'Unexplored chamber'
-    : room
-      ? `${room.name} (${room.type})`
-      : 'Chamber';
+  const title = canMove
+    ? `Move here (−1 MP)${revealedOnly ? ' — unexplored' : room ? `: ${room.name}` : ''}`
+    : revealedOnly
+      ? 'Unexplored chamber'
+      : room
+        ? `${room.name} (${room.type})`
+        : 'Chamber';
 
   return (
-    <g>
+    <g
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+      style={{ cursor: onSelect ? 'pointer' : 'default' }}
+      onClick={onSelect}
+      onKeyDown={
+        onSelect
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
+    >
       <title>{title}</title>
       {isCurrent && (
         <rect
@@ -269,6 +312,21 @@ function RoomNode({
           <animate attributeName="opacity" values="0.25;0.7;0.25" dur="2s" repeatCount="indefinite" />
         </rect>
       )}
+      {canMove && !isCurrent && (
+        <rect
+          x={x - 3}
+          y={y - 3}
+          width={size + 6}
+          height={size + 6}
+          fill="none"
+          stroke="#6ee7b7"
+          strokeWidth={1}
+          opacity={0.55}
+          rx={2}
+        >
+          <animate attributeName="opacity" values="0.3;0.85;0.3" dur="1.6s" repeatCount="indefinite" />
+        </rect>
+      )}
       <rect
         x={x}
         y={y}
@@ -279,7 +337,6 @@ function RoomNode({
         strokeWidth={strokeWidth}
         rx={2}
       />
-      {/* Inner brick-ish inset */}
       <rect
         x={x + 3}
         y={y + 3}
@@ -296,7 +353,7 @@ function RoomNode({
         textAnchor="middle"
         fontSize={revealedOnly ? 16 : 14}
         fill={revealedOnly ? '#6a655c' : '#DAC7B2'}
-        style={{ userSelect: 'none' }}
+        style={{ userSelect: 'none', pointerEvents: 'none' }}
       >
         {label}
       </text>

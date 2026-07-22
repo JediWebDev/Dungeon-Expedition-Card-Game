@@ -22,6 +22,7 @@ export type GameAction =
   | { type: 'startExpedition'; dungeonId: string; partyHeroIds: string[] }
   | { type: 'retreatExpedition' }
   | { type: 'proceedToNextRoom' }
+  | { type: 'moveToNode'; nodeId: string }
   | { type: 'advanceCombat' }
   | {
       type: 'submitCombatAction';
@@ -51,6 +52,7 @@ const ACTION_TYPES = new Set<GameAction['type']>([
   'startExpedition',
   'retreatExpedition',
   'proceedToNextRoom',
+  'moveToNode',
   'advanceCombat',
   'submitCombatAction',
   'setCombatMode',

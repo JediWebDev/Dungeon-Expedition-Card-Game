@@ -20,15 +20,21 @@ import { DungeonMapPanel } from './dungeon/DungeonMapPanel';
 import {
   countVisitedNodes,
   ensureDungeonMap,
+  getMovementPoints,
+  getNeighborNodeIds,
   resolveActiveRoom,
   resolveCurrentNodeId,
 } from '../dungeonMap';
+
+const COMBAT_ROOM_TYPES = ['Monster', 'Elite Monster', 'Boss'] as const;
+const CHOICE_ROOM_TYPES = ['Campfire', 'Trap', 'Mystery Event'] as const;
 
 export const DungeonRunner: React.FC = () => {
   const {
     expedition,
     guild,
     proceedToNextRoom,
+    moveToNode,
     advanceCombat,
     submitCombatAction,
     setCombatMode,
@@ -66,10 +72,41 @@ export const DungeonRunner: React.FC = () => {
   const mapDungeon = dungeon ? ensureDungeonMap(dungeon) : undefined;
   const visitedCount = mapDungeon?.map ? countVisitedNodes(mapDungeon.map) : currentRoomIndex + 1;
   const totalChambers = mapDungeon?.map?.nodes.length ?? dungeon?.rooms?.length ?? 0;
+  const { current: movementPoints, max: maxMovementPoints } = expedition
+    ? getMovementPoints(expedition)
+    : { current: 0, max: 0 };
+  const roomNeedsResolve =
+    !!activeRoom &&
+    (COMBAT_ROOM_TYPES.includes(activeRoom.type as (typeof COMBAT_ROOM_TYPES)[number]) ||
+      CHOICE_ROOM_TYPES.includes(activeRoom.type as (typeof CHOICE_ROOM_TYPES)[number]));
+  const canLeaveRoom = !!expedition && (!roomNeedsResolve || Boolean(expedition.activeRoomChoiceMade));
+  const neighborIds =
+    mapDungeon?.map && currentNodeId ? getNeighborNodeIds(mapDungeon.map, currentNodeId) : [];
+  const movableNodeIds =
+    canLeaveRoom && movementPoints >= 1 && !actionPending ? neighborIds : [];
+  const isBossVictoryReady = activeRoom?.type === 'Boss' && Boolean(expedition?.activeRoomChoiceMade);
+  const hasMultiplePaths = neighborIds.length > 1;
   const activeRoomType = activeRoom?.type;
   const activeRoomChoiceMade = expedition?.activeRoomChoiceMade ?? false;
   const combat = expedition?.combat ?? null;
   const combatMode = combat?.mode ?? 'manual';
+
+  const proceedLabel = isBossVictoryReady
+    ? 'Claim Expedition Victory'
+    : hasMultiplePaths
+      ? 'Choose a path on the map'
+      : neighborIds.length === 1
+        ? 'Proceed to next chamber'
+        : 'No path ahead';
+
+  const handleProceed = () => {
+    if (isBossVictoryReady || neighborIds.length === 1) {
+      proceedToNextRoom();
+      return;
+    }
+    // Multi-exit: prefer map clicks; still surface the server message if clicked.
+    proceedToNextRoom();
+  };
 
   // Auto-scrolling battle logs
   useEffect(() => {
@@ -251,6 +288,10 @@ export const DungeonRunner: React.FC = () => {
             <span className="text-stone-200 font-bold">{visitedCount}</span>
             {' / '}
             <span className="text-stone-200 font-bold">{totalChambers}</span>
+            {' · '}
+            <span className="text-[#D7BF92] font-bold">
+              MP {movementPoints}/{maxMovementPoints}
+            </span>
             {activeRoom ? (
               <>
                 {' · '}
@@ -308,6 +349,10 @@ export const DungeonRunner: React.FC = () => {
         <DungeonMapPanel
           dungeon={mapDungeon}
           currentNodeId={currentNodeId}
+          movableNodeIds={movableNodeIds}
+          onMoveToNode={moveToNode}
+          movementPoints={movementPoints}
+          maxMovementPoints={maxMovementPoints}
           className="mb-4 shrink-0"
         />
       )}
@@ -423,12 +468,17 @@ export const DungeonRunner: React.FC = () => {
                     </p>
 
                     {!expedition.activeRoomChoiceMade ? (
-                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
-                        Loot Chest & Proceed
+                      <UiButton className="mt-6" onClick={handleProceed}>
+                        {hasMultiplePaths ? 'Loot Chest' : 'Loot Chest & Proceed'}
                       </UiButton>
                     ) : (
-                      <UiButton className="mt-6" variant="ghost" onClick={proceedToNextRoom}>
-                        Proceed Ahead
+                      <UiButton
+                        className="mt-6"
+                        variant="ghost"
+                        onClick={handleProceed}
+                        disabled={hasMultiplePaths && !isBossVictoryReady}
+                      >
+                        {proceedLabel}
                       </UiButton>
                     )}
                   </div>
@@ -473,8 +523,12 @@ export const DungeonRunner: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
-                        Extinguish Fire & Proceed
+                      <UiButton
+                        className="mt-6"
+                        onClick={handleProceed}
+                        disabled={hasMultiplePaths && !isBossVictoryReady}
+                      >
+                        {isBossVictoryReady ? proceedLabel : hasMultiplePaths ? 'Choose a path on the map' : 'Extinguish Fire & Proceed'}
                       </UiButton>
                     )}
                   </div>
@@ -531,8 +585,11 @@ export const DungeonRunner: React.FC = () => {
                     )}
 
                     <div className="flex justify-end pt-3 border-t border-stone-800 font-sans">
-                      <UiButton onClick={proceedToNextRoom}>
-                        Leave Shop & Proceed
+                      <UiButton
+                        onClick={handleProceed}
+                        disabled={hasMultiplePaths && !isBossVictoryReady}
+                      >
+                        {hasMultiplePaths ? 'Choose a path on the map' : 'Leave Shop & Proceed'}
                       </UiButton>
                     </div>
                   </div>
@@ -601,8 +658,12 @@ export const DungeonRunner: React.FC = () => {
                           })}
                       </div>
                     ) : (
-                      <UiButton className="mt-6" onClick={proceedToNextRoom}>
-                        Bypass Trap & Proceed
+                      <UiButton
+                        className="mt-6"
+                        onClick={handleProceed}
+                        disabled={hasMultiplePaths && !isBossVictoryReady}
+                      >
+                        {hasMultiplePaths ? 'Choose a path on the map' : 'Bypass Trap & Proceed'}
                       </UiButton>
                     )}
                   </div>
@@ -665,8 +726,11 @@ export const DungeonRunner: React.FC = () => {
                             <div className="text-xs bg-purple-950/30 text-purple-300 py-3.5 px-4 border border-purple-500/20 rounded-sm max-w-sm mb-6 leading-relaxed font-sans font-semibold uppercase tracking-wide">
                               {expedition.selectedEventOutcomeText}
                             </div>
-                            <UiButton onClick={proceedToNextRoom}>
-                              Collect Outcome & Proceed
+                            <UiButton
+                              onClick={handleProceed}
+                              disabled={hasMultiplePaths && !isBossVictoryReady}
+                            >
+                              {hasMultiplePaths ? 'Choose a path on the map' : 'Collect Outcome & Proceed'}
                             </UiButton>
                           </div>
                         )}
