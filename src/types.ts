@@ -233,6 +233,41 @@ export interface DungeonRoom {
   };
 }
 
+/** Fog-of-war visibility for a map node (Phase 2+ UI). Phase 1 keeps this in sync with room status. */
+export type MapNodeVisibility = 'hidden' | 'revealed' | 'visited';
+
+/** A modular room placement on the dungeon graph. */
+export interface DungeonMapNode {
+  id: string;
+  /** Links to `Dungeon.rooms[].id`. */
+  roomId: string;
+  /** Layout coords for future map rendering (grid units). */
+  x: number;
+  y: number;
+  visibility: MapNodeVisibility;
+}
+
+/** A corridor / connection between two nodes. */
+export interface DungeonMapEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  /** Phase 4 — locked doors / keys. */
+  locked?: boolean;
+  requiredKeyId?: string | null;
+}
+
+/**
+ * Graph representation of a dungeon. Phase 1 generates a single path
+ * (start → … → boss). Later phases add branching, locks, and fog UI.
+ */
+export interface DungeonMap {
+  nodes: DungeonMapNode[];
+  edges: DungeonMapEdge[];
+  startNodeId: string;
+  bossNodeId: string;
+}
+
 export interface Dungeon {
   id: string;
   name: string;
@@ -240,6 +275,8 @@ export interface Dungeon {
   dangerRating: number; // 1 to 5 stars
   totalRooms: number;
   rooms?: DungeonRoom[];
+  /** Graph layout; absent on legacy saves until migrated. */
+  map?: DungeonMap;
   rewardsPreview: string;
 }
 
@@ -253,7 +290,13 @@ export interface CombatLog {
 export interface ExpeditionState {
   dungeon: Dungeon;
   party: Hero[];
+  /**
+   * Linear index into `dungeon.rooms` — kept for display/compat.
+   * Prefer `currentNodeId` for navigation; they stay in sync on a path map.
+   */
   currentRoomIndex: number;
+  /** Active map node id. Migrated from `currentRoomIndex` for older saves. */
+  currentNodeId?: string;
   status: 'planning' | 'running' | 'room_active' | 'victory' | 'defeat' | 'retreat';
   logs: CombatLog[];
   goldEarned: number;

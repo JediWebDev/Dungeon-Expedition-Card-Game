@@ -18,6 +18,7 @@ import type {
   Relic,
 } from '../../src/types';
 import { generateId, getModifiedStats } from '../../src/utils';
+import { resolveActiveRoom, updateActiveRoom } from '../../src/dungeonMap';
 import { GameActionError, type GameSnapshot } from './types';
 
 const COMBAT_ROOM_TYPES = new Set(['Monster', 'Elite Monster', 'Boss']);
@@ -122,15 +123,16 @@ export function createCombatState(
 }
 
 function getActiveRoomMonsters(expedition: ExpeditionState): Monster[] {
-  const room = expedition.dungeon.rooms?.[expedition.currentRoomIndex];
-  return ensureMonsterIds(room?.monsterGroup ?? []);
+  try {
+    const room = resolveActiveRoom(expedition);
+    return ensureMonsterIds(room.monsterGroup ?? []);
+  } catch {
+    return [];
+  }
 }
 
 function writeMonsters(expedition: ExpeditionState, monsters: Monster[]): ExpeditionState {
-  const rooms = (expedition.dungeon.rooms ?? []).map((r, idx) =>
-    idx === expedition.currentRoomIndex ? { ...r, monsterGroup: monsters } : r
-  );
-  return { ...expedition, dungeon: { ...expedition.dungeon, rooms } };
+  return updateActiveRoom(expedition, { monsterGroup: monsters });
 }
 
 function activeEntry(combat: CombatState): CombatTurnEntry | null {
@@ -519,8 +521,13 @@ function settleClear(guild: GuildState, expedition: ExpeditionState): Snapshot {
 }
 
 function ensureCombat(guild: GuildState, expedition: ExpeditionState): ExpeditionState {
-  const room = expedition.dungeon.rooms?.[expedition.currentRoomIndex];
-  if (!room || !COMBAT_ROOM_TYPES.has(room.type)) {
+  let room;
+  try {
+    room = resolveActiveRoom(expedition);
+  } catch {
+    throw new GameActionError('This room has no combat.');
+  }
+  if (!COMBAT_ROOM_TYPES.has(room.type)) {
     throw new GameActionError('This room has no combat.');
   }
   if (expedition.activeRoomChoiceMade) {
@@ -669,8 +676,13 @@ export function handleSetCombatMode(
 
 /** Start turn-based combat when entering a combat room (or no-op for other rooms). */
 export function prepareRoomCombat(guild: GuildState, expedition: ExpeditionState): ExpeditionState {
-  const room = expedition.dungeon.rooms?.[expedition.currentRoomIndex];
-  if (!room || !COMBAT_ROOM_TYPES.has(room.type)) {
+  let room;
+  try {
+    room = resolveActiveRoom(expedition);
+  } catch {
+    return { ...expedition, combat: null };
+  }
+  if (!COMBAT_ROOM_TYPES.has(room.type)) {
     return { ...expedition, combat: null };
   }
   if (expedition.combat) return expedition;

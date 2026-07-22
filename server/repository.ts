@@ -27,6 +27,7 @@ import type {
   Relic,
 } from '../src/types';
 import { emptyHeroEquipment, EQUIP_SLOTS, normalizeEquipSlot } from '../src/types';
+import { migrateExpeditionMap } from '../src/dungeonMap';
 
 const DEFAULT_GUILD_NAME = 'New Guild';
 export async function getOrCreateGuildForUser(userId: string): Promise<string> {
@@ -172,12 +173,13 @@ export async function loadGameState(guildId: string): Promise<{
   return { guild: guildState, expedition: expeditionState };
 }
 
-/** Bring party heroes / equipment bags forward from the old 3-slot model. */
+/** Bring party heroes / equipment bags forward from the old 3-slot model + attach map graph. */
 function migrateExpeditionState(exp: ExpeditionState): ExpeditionState {
-  return {
+  const withHeroes: ExpeditionState = {
     ...exp,
     party: exp.party.map((h) => migrateHero(h)),
   };
+  return migrateExpeditionMap(withHeroes);
 }
 
 function migrateHero(h: Hero): Hero {

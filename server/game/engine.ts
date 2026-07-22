@@ -25,12 +25,20 @@ import type {
 } from '../../src/types';
 import { EQUIP_SLOTS } from '../../src/types';
 import {
-  generateDungeonRooms,
   generateId,
   generateRandomEquipment,
   generateRandomHero,
   getModifiedStats
 } from '../../src/utils';
+import {
+  advanceAlongPath,
+  ensureDungeonMap,
+  generateDungeonLayout,
+  getNextNodeId,
+  resolveActiveRoom,
+  resolveActiveRoomIndex,
+  resolveCurrentNodeId,
+} from '../../src/dungeonMap';
 import { DUNGEON_TEMPLATES, RELICS_POOL } from '../../src/data';
 import {
   applyDueAutoRevives,
@@ -436,10 +444,11 @@ function handleReviveHero(guild: GuildState, expedition: ExpeditionState | null,
 // ---------------------------------------------------------------------------
 
 function getActiveRoom(expedition: ExpeditionState): DungeonRoom {
-  const rooms = expedition.dungeon.rooms ?? [];
-  const room = rooms[expedition.currentRoomIndex];
-  if (!room) throw new GameActionError('Active room data is missing for this expedition.', 500);
-  return room;
+  try {
+    return resolveActiveRoom(expedition);
+  } catch {
+    throw new GameActionError('Active room data is missing for this expedition.', 500);
+  }
 }
 
 function handleStartExpedition(
@@ -470,8 +479,8 @@ function handleStartExpedition(
   }
 
   const expeditionParty = party.map((h) => ({ ...h, status: 'Expedition' as const }));
-  const rooms = generateDungeonRooms(template.totalRooms, template.dangerRating);
-  const configuredDungeon: Dungeon = { ...template, rooms };
+  const { rooms, map } = generateDungeonLayout(template.totalRooms, template.dangerRating);
+  const configuredDungeon: Dungeon = { ...template, rooms, map };
 
   const firstLog: CombatLog = {
     id: generateId(),
@@ -490,6 +499,7 @@ function handleStartExpedition(
     dungeon: configuredDungeon,
     party: expeditionParty,
     currentRoomIndex: 0,
+    currentNodeId: map.startNodeId,
     status: 'room_active',
     logs: [firstLog],
     goldEarned: 0,
@@ -575,7 +585,7 @@ function claimTreasureIfAny(expedition: ExpeditionState, roomIndex: number): Exp
 
   return {
     ...expedition,
-    dungeon: { ...expedition.dungeon, rooms: nextRooms },
+    dungeon: ensureDungeonMap({ ...expedition.dungeon, rooms: nextRooms }),
     goldEarned: expedition.goldEarned + loot.gold,
     lootEarned: {
       equipment: loot.equipment ? [...expedition.lootEarned.equipment, loot.equipment] : expedition.lootEarned.equipment,
@@ -595,9 +605,23 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
     throw new GameActionError('You must resolve this room before proceeding.');
   }
 
+  const activeIndex = resolveActiveRoomIndex(expedition);
   // Treasure rooms auto-claim their loot on proceed (Merchant/other room types have nothing to claim).
-  const workingExpedition = claimTreasureIfAny(expedition, expedition.currentRoomIndex);
+  const workingExpedition = claimTreasureIfAny(expedition, activeIndex);
 
+  const dungeon = ensureDungeonMap(workingExpedition.dungeon);
+  const map = dungeon.map;
+  const currentNodeId = resolveCurrentNodeId({ ...workingExpedition, dungeon });
+
+  if (map && currentNodeId) {
+    const nextNodeId = getNextNodeId(map, currentNodeId);
+    if (!nextNodeId) {
+      return settleExpeditionVictory(guild, workingExpedition, activeIndex + 1);
+    }
+    return advanceToNode(guild, { ...workingExpedition, dungeon }, nextNodeId);
+  }
+
+  // Legacy fallback: pure index walk
   const nextIndex = workingExpedition.currentRoomIndex + 1;
   const roomCount = workingExpedition.dungeon.rooms?.length ?? 0;
   const isFinished = nextIndex >= roomCount;
@@ -671,8 +695,57 @@ function settleExpeditionVictory(guild: GuildState, expedition: ExpeditionState,
   return { guild: settledGuild, expedition: settledExpedition };
 }
 
+function advanceToNode(guild: GuildState, expedition: ExpeditionState, nextNodeId: string): GameSnapshot {
+  let progressed: ReturnType<typeof advanceAlongPath>;
+  try {
+    progressed = advanceAlongPath(expedition, nextNodeId);
+  } catch {
+    throw new GameActionError('Unable to advance to the next room.', 500);
+  }
+
+  const nextRoomObj = (progressed.dungeon.rooms ?? [])[progressed.currentRoomIndex];
+  if (!nextRoomObj) throw new GameActionError('Unable to advance to the next room.', 500);
+
+  const transitionLog: CombatLog = {
+    id: generateId(),
+    text: `🚶 Party enters "${nextRoomObj.name}": ${nextRoomObj.description}`,
+    type: 'info',
+    timestamp: Date.now()
+  };
+
+  const merchantStock = [
+    generateRandomEquipment(expedition.dungeon.dangerRating),
+    generateRandomEquipment(expedition.dungeon.dangerRating + 1),
+    generateRandomEquipment(expedition.dungeon.dangerRating + 2)
+  ];
+
+  const nextExpedition: ExpeditionState = {
+    ...expedition,
+    ...progressed,
+    status: 'room_active',
+    logs: [...expedition.logs, transitionLog],
+    combatRound: 1,
+    activeRoomChoiceMade: false,
+    selectedEventOutcomeText: undefined,
+    merchantItemsStock: merchantStock,
+    combat: null,
+  };
+
+  return { guild, expedition: prepareRoomCombat(guild, nextExpedition) };
+}
+
 function advanceToRoom(guild: GuildState, expedition: ExpeditionState, nextIndex: number): GameSnapshot {
-  const currentRooms = expedition.dungeon.rooms ?? [];
+  const dungeon = ensureDungeonMap(expedition.dungeon);
+  const map = dungeon.map;
+  const nextNode = map?.nodes.find((n) => {
+    const room = (dungeon.rooms ?? [])[nextIndex];
+    return room && n.roomId === room.id;
+  });
+  if (nextNode) {
+    return advanceToNode(guild, { ...expedition, dungeon }, nextNode.id);
+  }
+
+  const currentRooms = dungeon.rooms ?? [];
   const nextRooms = currentRooms.map((r, i) => {
     if (i === expedition.currentRoomIndex) return { ...r, status: 'cleared' as const };
     if (i === nextIndex) return { ...r, status: 'active' as const };
@@ -697,8 +770,9 @@ function advanceToRoom(guild: GuildState, expedition: ExpeditionState, nextIndex
 
   const nextExpedition: ExpeditionState = {
     ...expedition,
-    dungeon: { ...expedition.dungeon, rooms: nextRooms },
+    dungeon: { ...dungeon, rooms: nextRooms },
     currentRoomIndex: nextIndex,
+    currentNodeId: undefined,
     status: 'room_active',
     logs: [...expedition.logs, transitionLog],
     combatRound: 1,
@@ -787,9 +861,12 @@ function settleRoomCleared(guild: GuildState, expedition: ExpeditionState, curre
 bindCombatSettlers({
   settleDefeat: settleExpeditionDefeat,
   settleClear: (g, e) => {
-    const room = e.dungeon.rooms?.[e.currentRoomIndex];
-    if (!room) return { guild: g, expedition: { ...e, combat: null } };
-    return settleRoomCleared(g, e, room);
+    try {
+      const room = resolveActiveRoom(e);
+      return settleRoomCleared(g, e, room);
+    } catch {
+      return { guild: g, expedition: { ...e, combat: null } };
+    }
   },
 });
 
