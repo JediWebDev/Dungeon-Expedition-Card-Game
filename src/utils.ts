@@ -13,7 +13,8 @@ import {
   EQUIPMENT_CATALOG,
   MONSTERS_POOL,
   MYSTERY_EVENTS_CATALOG,
-  RELICS_POOL
+  RELICS_POOL,
+  GAMBLER_ROOM_EVENT,
 } from './data';
 import { pickHeroPortraitSeed } from './lib/portraitCatalog';
 
@@ -224,12 +225,14 @@ export function generateMonster(tier: 'common' | 'elite' | 'boss'): Monster {
 /** Weighted pick for non-start / non-boss chambers. */
 export function pickRegularRoomType(): RoomType {
   const roll = Math.random();
-  if (roll > 0.85) return 'Elite Monster';
-  if (roll > 0.70) return 'Mystery Event';
-  if (roll > 0.55) return 'Trap';
-  if (roll > 0.40) return 'Treasure';
-  if (roll > 0.30) return 'Campfire';
-  if (roll > 0.20) return 'Merchant';
+  if (roll > 0.92) return 'Imprisoned Recruit';
+  if (roll > 0.88) return 'Gambler';
+  if (roll > 0.83) return 'Elite Monster';
+  if (roll > 0.68) return 'Mystery Event';
+  if (roll > 0.53) return 'Trap';
+  if (roll > 0.38) return 'Treasure';
+  if (roll > 0.28) return 'Campfire';
+  if (roll > 0.18) return 'Merchant';
   return 'Monster';
 }
 
@@ -245,6 +248,7 @@ export function createDungeonRoom(
   let monsterGroup: Monster[] = [];
   let mysteryEvent: MysteryEvent | undefined;
   let treasureLoot: DungeonRoom['treasureLoot'];
+  let imprisonedHero: Hero | undefined;
 
   if (type === 'Monster') {
     name = `Shadow Corridor ${index + 1}`;
@@ -291,6 +295,17 @@ export function createDungeonRoom(
     const randomEvent =
       MYSTERY_EVENTS_CATALOG[Math.floor(Math.random() * MYSTERY_EVENTS_CATALOG.length)];
     mysteryEvent = JSON.parse(JSON.stringify(randomEvent));
+  } else if (type === 'Gambler') {
+    name = 'The Crooked Dice Den';
+    description =
+      'A circle of hooded gamblers rattles bone dice atop a barrel. They beckon you closer with greedy grins.';
+    mysteryEvent = JSON.parse(JSON.stringify(GAMBLER_ROOM_EVENT));
+  } else if (type === 'Imprisoned Recruit') {
+    name = 'Iron-Bound Cell';
+    description =
+      'Chains rattle in a cramped holding cell. A capable adventurer pleads for rescue before the guards return.';
+    imprisonedHero = generateRandomHero(Math.max(1, dangerRating));
+    imprisonedHero.name = `${imprisonedHero.name} (Captive)`;
   }
 
   return {
@@ -303,6 +318,7 @@ export function createDungeonRoom(
     monsterGroup,
     mysteryEvent,
     treasureLoot,
+    imprisonedHero,
   };
 }
 

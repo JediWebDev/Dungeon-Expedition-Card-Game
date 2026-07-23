@@ -674,6 +674,11 @@ export const MYSTERY_EVENTS_CATALOG: MysteryEvent[] = [
   }
 ];
 
+/** Dedicated gambler den content (Phase 4 room type). */
+export const GAMBLER_ROOM_EVENT: MysteryEvent = JSON.parse(
+  JSON.stringify(MYSTERY_EVENTS_CATALOG.find((e) => e.id === 'event_goblins')!)
+);
+
 // Subterranean Monsters Group
 export const MONSTERS_POOL = {
   common: [

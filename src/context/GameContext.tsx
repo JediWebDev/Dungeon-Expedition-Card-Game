@@ -74,6 +74,7 @@ interface GameContextProps {
   makeEventChoice: (choiceIndex: number) => void;
   handleCampfireChoice: (option: 'heal' | 'morale' | 'train') => void;
   handleTrapChoice: (heroId: string, method: 'speed' | 'defense' | 'luck') => void;
+  handleImprisonedRecruit: (option: 'recruit' | 'leave') => void;
   buyMerchantItem: (itemId: string) => void;
   setExpeditionSpeed: (speed: 1 | 2 | 3) => void;
 }
@@ -231,6 +232,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     makeEventChoice: (choiceIndex) => runAction({ type: 'makeEventChoice', choiceIndex }),
     handleCampfireChoice: (option) => runAction({ type: 'handleCampfireChoice', option }),
     handleTrapChoice: (heroId, method) => runAction({ type: 'handleTrapChoice', heroId, method }),
+    handleImprisonedRecruit: (option) => runAction({ type: 'handleImprisonedRecruit', option }),
     buyMerchantItem: (itemId) => runAction({ type: 'buyMerchantItem', itemId }),
     setExpeditionSpeed: (speed) => runAction({ type: 'setExpeditionSpeed', speed }),
   };

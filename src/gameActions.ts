@@ -34,6 +34,7 @@ export type GameAction =
   | { type: 'makeEventChoice'; choiceIndex: number }
   | { type: 'handleCampfireChoice'; option: 'heal' | 'morale' | 'train' }
   | { type: 'handleTrapChoice'; heroId: string; method: 'speed' | 'defense' | 'luck' }
+  | { type: 'handleImprisonedRecruit'; option: 'recruit' | 'leave' }
   | { type: 'buyMerchantItem'; itemId: string }
   | { type: 'setExpeditionSpeed'; speed: 1 | 2 | 3 }
   | { type: 'claimTreasureAndProceed' };
@@ -59,6 +60,7 @@ const ACTION_TYPES = new Set<GameAction['type']>([
   'makeEventChoice',
   'handleCampfireChoice',
   'handleTrapChoice',
+  'handleImprisonedRecruit',
   'buyMerchantItem',
   'setExpeditionSpeed',
   'claimTreasureAndProceed',

@@ -37,6 +37,7 @@ import {
   generateDungeonLayout,
   getMovementPoints,
   getNeighborNodeIds,
+  grantRoomKey,
   MOVE_COST,
   resolveActiveRoom,
   resolveActiveRoomIndex,
@@ -66,7 +67,14 @@ type ActionOf<T extends GameAction['type']> = Extract<GameAction, { type: T }>;
 
 const TERMINAL_EXPEDITION_STATUSES: ExpeditionState['status'][] = ['victory', 'defeat', 'retreat'];
 const COMBAT_ROOM_TYPES: DungeonRoom['type'][] = ['Monster', 'Elite Monster', 'Boss'];
-const CHOICE_ROOM_TYPES: DungeonRoom['type'][] = ['Campfire', 'Trap', 'Mystery Event'];
+const CHOICE_ROOM_TYPES: DungeonRoom['type'][] = [
+  'Campfire',
+  'Trap',
+  'Mystery Event',
+  'Gambler',
+  'Imprisoned Recruit',
+];
+const MAX_EXPEDITION_PARTY = 6;
 
 /** Stamp a hero as fallen for Sanctuary auto-revive tracking. */
 function markHeroDead(hero: Hero, extras: Partial<Hero> = {}, now = Date.now()): Hero {
@@ -235,6 +243,8 @@ export function applyGameAction(state: GameSnapshot, action: GameAction): GameSn
       return handleCampfireChoiceAction(guild, expedition, action);
     case 'handleTrapChoice':
       return handleTrapChoiceAction(guild, expedition, action);
+    case 'handleImprisonedRecruit':
+      return handleImprisonedRecruitAction(guild, expedition, action);
     case 'buyMerchantItem':
       return handleBuyMerchantItem(guild, expedition, action);
     default: {
@@ -509,6 +519,7 @@ function handleStartExpedition(
     currentNodeId: map.startNodeId,
     movementPoints: maxMovementPoints,
     maxMovementPoints,
+    keysHeld: [],
     status: 'room_active',
     logs: [firstLog],
     goldEarned: 0,
@@ -592,15 +603,28 @@ function claimTreasureIfAny(expedition: ExpeditionState, roomIndex: number): Exp
 
   const nextRooms = rooms.map((r, i) => (i === roomIndex ? { ...r, treasureLoot: undefined } : r));
 
+  return applyKeyGrantIfAny(
+    {
+      ...expedition,
+      dungeon: ensureDungeonMap({ ...expedition.dungeon, rooms: nextRooms }),
+      goldEarned: expedition.goldEarned + loot.gold,
+      lootEarned: {
+        equipment: loot.equipment ? [...expedition.lootEarned.equipment, loot.equipment] : expedition.lootEarned.equipment,
+        relics: loot.relic ? [...expedition.lootEarned.relics, loot.relic] : expedition.lootEarned.relics
+      },
+      logs: [...expedition.logs, claimLog]
+    },
+    room
+  );
+}
+
+function applyKeyGrantIfAny(expedition: ExpeditionState, room: DungeonRoom): ExpeditionState {
+  const grant = grantRoomKey(expedition, room);
+  if (!grant) return expedition;
   return {
     ...expedition,
-    dungeon: ensureDungeonMap({ ...expedition.dungeon, rooms: nextRooms }),
-    goldEarned: expedition.goldEarned + loot.gold,
-    lootEarned: {
-      equipment: loot.equipment ? [...expedition.lootEarned.equipment, loot.equipment] : expedition.lootEarned.equipment,
-      relics: loot.relic ? [...expedition.lootEarned.relics, loot.relic] : expedition.lootEarned.relics
-    },
-    logs: [...expedition.logs, claimLog]
+    keysHeld: grant.keysHeld,
+    logs: [...expedition.logs, ...grant.logs],
   };
 }
 
@@ -615,7 +639,7 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
   }
 
   const activeIndex = resolveActiveRoomIndex(expedition);
-  const workingExpedition = claimTreasureIfAny(expedition, activeIndex);
+  const workingExpedition = applyKeyGrantIfAny(claimTreasureIfAny(expedition, activeIndex), getActiveRoom(expedition));
 
   // Cleared boss: claim victory (exploration of side paths is via the map instead).
   if (activeRoom.type === 'Boss' && workingExpedition.activeRoomChoiceMade) {
@@ -627,7 +651,7 @@ function handleProceedToNextRoom(guild: GuildState, expedition: ExpeditionState 
   const currentNodeId = resolveCurrentNodeId({ ...workingExpedition, dungeon });
 
   if (map && currentNodeId) {
-    const neighbors = getNeighborNodeIds(map, currentNodeId);
+    const neighbors = getNeighborNodeIds(map, currentNodeId, workingExpedition.keysHeld ?? []);
     if (neighbors.length === 0) {
       throw new GameActionError('No corridors lead from this chamber. Retreat if you cannot continue.');
     }
@@ -687,7 +711,7 @@ function handleMoveToNode(
   }
 
   const activeIndex = resolveActiveRoomIndex(expedition);
-  const workingExpedition = claimTreasureIfAny(expedition, activeIndex);
+  const workingExpedition = applyKeyGrantIfAny(claimTreasureIfAny(expedition, activeIndex), getActiveRoom(expedition));
 
   const dungeon = ensureDungeonMap(workingExpedition.dungeon);
   const map = dungeon.map;
@@ -699,8 +723,16 @@ function handleMoveToNode(
     throw new GameActionError('You are already in that chamber.');
   }
 
-  const neighbors = getNeighborNodeIds(map, currentNodeId);
+  const neighbors = getNeighborNodeIds(map, currentNodeId, workingExpedition.keysHeld ?? []);
   if (!neighbors.includes(action.nodeId)) {
+    const edge = map.edges.find(
+      (e) =>
+        (e.fromNodeId === currentNodeId && e.toNodeId === action.nodeId) ||
+        (e.fromNodeId === action.nodeId && e.toNodeId === currentNodeId)
+    );
+    if (edge?.locked) {
+      throw new GameActionError('That corridor is locked. Find the matching key in the dungeon.');
+    }
     throw new GameActionError('That chamber is not connected to your current position.');
   }
 
@@ -948,7 +980,7 @@ function settleRoomCleared(guild: GuildState, expedition: ExpeditionState, curre
     logs: [...expedition.logs, clearedLog]
   };
 
-  return { guild, expedition: nextExpedition };
+  return { guild, expedition: applyKeyGrantIfAny(nextExpedition, currentRoom) };
 }
 
 bindCombatSettlers({
@@ -981,8 +1013,11 @@ function handleMakeEventChoice(
   if (expedition.activeRoomChoiceMade) throw new GameActionError('This event has already been resolved.');
 
   const activeRoom = getActiveRoom(expedition);
-  if (activeRoom.type !== 'Mystery Event' || !activeRoom.mysteryEvent) {
-    throw new GameActionError('There is no mystery event to resolve in this room.');
+  if (
+    (activeRoom.type !== 'Mystery Event' && activeRoom.type !== 'Gambler') ||
+    !activeRoom.mysteryEvent
+  ) {
+    throw new GameActionError('There is no event to resolve in this room.');
   }
 
   const choice = activeRoom.mysteryEvent.choices[action.choiceIndex];
@@ -1247,6 +1282,84 @@ function handleTrapChoiceAction(
   };
 
   const nextGuild = hasWiped ? markPartyDead(guild, updatedParty) : guild;
+
+  return { guild: nextGuild, expedition: nextExpedition };
+}
+
+function handleImprisonedRecruitAction(
+  guild: GuildState,
+  expedition: ExpeditionState | null,
+  action: ActionOf<'handleImprisonedRecruit'>
+): GameSnapshot {
+  if (!expedition) throw new GameActionError('No active expedition.');
+  if (expedition.status !== 'room_active') throw new GameActionError('Cannot interact with this cell right now.');
+  if (expedition.activeRoomChoiceMade) throw new GameActionError('This cell has already been resolved.');
+
+  const activeRoom = getActiveRoom(expedition);
+  if (activeRoom.type !== 'Imprisoned Recruit' || !activeRoom.imprisonedHero) {
+    throw new GameActionError('There is no captive here.');
+  }
+
+  if (action.option === 'leave') {
+    const nextExpedition: ExpeditionState = {
+      ...expedition,
+      activeRoomChoiceMade: true,
+      logs: [
+        ...expedition.logs,
+        {
+          id: generateId(),
+          text: '⛓️ The party leaves the captive behind and presses onward.',
+          type: 'info',
+          timestamp: Date.now(),
+        },
+      ],
+    };
+    return { guild, expedition: nextExpedition };
+  }
+
+  if (expedition.party.length >= MAX_EXPEDITION_PARTY) {
+    throw new GameActionError('Your expedition party is full. Dismiss someone at the guild first.');
+  }
+  if (guild.roster.length >= guild.upgrades.maxRoster) {
+    throw new GameActionError('Your guild roster is full. Upgrade Max Roster before recruiting.');
+  }
+
+  const captive = activeRoom.imprisonedHero;
+  const cost = captive.level * 100;
+  if (guild.gold < cost) {
+    throw new GameActionError(`You need ${cost} gold to bribe the guards and free this hero.`);
+  }
+
+  const freedName = captive.name.replace(/\s*\(Captive\)\s*$/, '');
+  const freedHero: Hero = {
+    ...captive,
+    id: generateId(),
+    name: freedName,
+    status: 'Expedition',
+    hp: Math.max(1, Math.round(captive.maxHp * 0.55)),
+    morale: Math.min(100, captive.morale + 10),
+  };
+
+  const nextExpedition: ExpeditionState = {
+    ...expedition,
+    party: [...expedition.party, freedHero],
+    activeRoomChoiceMade: true,
+    logs: [
+      ...expedition.logs,
+      {
+        id: generateId(),
+        text: `🗝️ ${freedHero.name} joins the expedition! (−${cost}g bribe, party +1)`,
+        type: 'victory',
+        timestamp: Date.now(),
+      },
+    ],
+  };
+
+  const nextGuild: GuildState = {
+    ...guild,
+    gold: guild.gold - cost,
+    roster: [...guild.roster, freedHero],
+  };
 
   return { guild: nextGuild, expedition: nextExpedition };
 }

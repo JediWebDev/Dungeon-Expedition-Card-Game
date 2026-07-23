@@ -27,7 +27,7 @@ import {
 } from '../dungeonMap';
 
 const COMBAT_ROOM_TYPES = ['Monster', 'Elite Monster', 'Boss'] as const;
-const CHOICE_ROOM_TYPES = ['Campfire', 'Trap', 'Mystery Event'] as const;
+const CHOICE_ROOM_TYPES = ['Campfire', 'Trap', 'Mystery Event', 'Gambler', 'Imprisoned Recruit'] as const;
 
 export const DungeonRunner: React.FC = () => {
   const {
@@ -41,6 +41,7 @@ export const DungeonRunner: React.FC = () => {
     makeEventChoice,
     handleCampfireChoice,
     handleTrapChoice,
+    handleImprisonedRecruit,
     buyMerchantItem,
     retreatExpedition,
     setActiveScreen,
@@ -80,8 +81,11 @@ export const DungeonRunner: React.FC = () => {
     (COMBAT_ROOM_TYPES.includes(activeRoom.type as (typeof COMBAT_ROOM_TYPES)[number]) ||
       CHOICE_ROOM_TYPES.includes(activeRoom.type as (typeof CHOICE_ROOM_TYPES)[number]));
   const canLeaveRoom = !!expedition && (!roomNeedsResolve || Boolean(expedition.activeRoomChoiceMade));
+  const keysHeld = expedition?.keysHeld ?? [];
   const neighborIds =
-    mapDungeon?.map && currentNodeId ? getNeighborNodeIds(mapDungeon.map, currentNodeId) : [];
+    mapDungeon?.map && currentNodeId
+      ? getNeighborNodeIds(mapDungeon.map, currentNodeId, keysHeld)
+      : [];
   const movableNodeIds =
     canLeaveRoom && movementPoints >= 1 && !actionPending ? neighborIds : [];
   const isBossVictoryReady = activeRoom?.type === 'Boss' && Boolean(expedition?.activeRoomChoiceMade);
@@ -292,6 +296,14 @@ export const DungeonRunner: React.FC = () => {
             <span className="text-[#D7BF92] font-bold">
               MP {movementPoints}/{maxMovementPoints}
             </span>
+            {keysHeld.length > 0 ? (
+              <>
+                {' · '}
+                <span className="text-amber-400/90 font-bold">
+                  Keys {keysHeld.map((k) => k.name).join(', ')}
+                </span>
+              </>
+            ) : null}
             {activeRoom ? (
               <>
                 {' · '}
@@ -353,6 +365,7 @@ export const DungeonRunner: React.FC = () => {
           onMoveToNode={moveToNode}
           movementPoints={movementPoints}
           maxMovementPoints={maxMovementPoints}
+          keysHeld={keysHeld}
           className="mb-4 shrink-0"
         />
       )}

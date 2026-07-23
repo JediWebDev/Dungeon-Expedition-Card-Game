@@ -14,6 +14,7 @@ import type {
   DungeonMapEdge,
   DungeonMapNode,
   DungeonRoom,
+  ExpeditionKey,
   ExpeditionState,
   MapNodeVisibility,
   RoomType,
@@ -27,6 +28,7 @@ import {
 
 const MOVE_COST = 1;
 const CAMPFIRE_MP_RESTORE = 3;
+const KEY_NAMES = ['Iron Key', 'Bronze Key', 'Silver Key', 'Vault Key'] as const;
 
 function visibilityForRoomStatus(status: DungeonRoom['status']): MapNodeVisibility {
   if (status === 'cleared' || status === 'active') return 'visited';
@@ -207,20 +209,90 @@ function buildBranchingDungeon(
   }
 
   // Reveal all neighbors of the start.
-  for (const nid of getNeighborNodeIds({ nodes, edges, startNodeId: nodes[0]!.id, bossNodeId: nodes[mainLen - 1]!.id }, nodes[0]!.id)) {
+  for (const nid of getAdjacentNodeIds({ nodes, edges, startNodeId: nodes[0]!.id, bossNodeId: nodes[mainLen - 1]!.id }, nodes[0]!.id)) {
     const n = nodes.find((x) => x.id === nid);
     if (n && n.visibility === 'hidden') n.visibility = 'revealed';
   }
 
   const bossSlotIndex = slots.findIndex((s) => s.role === 'boss');
+  const map: DungeonMap = {
+    nodes,
+    edges,
+    startNodeId: nodes[0]!.id,
+    bossNodeId: nodes[bossSlotIndex >= 0 ? bossSlotIndex : nodes.length - 1]!.id,
+  };
+
+  return applyLockedDoorsAndKeys(map, rooms, dangerRating);
+}
+
+/** Lock branch corridors and hide matching keys in reachable side rooms. */
+function applyLockedDoorsAndKeys(
+  map: DungeonMap,
+  rooms: DungeonRoom[],
+  dangerRating: number
+): { rooms: DungeonRoom[]; map: DungeonMap } {
+  const nodeById = new Map(map.nodes.map((n) => [n.id, n]));
+  const roomById = new Map(rooms.map((r) => [r.id, r]));
+
+  // Branch-entry edges: spine/main → side branch (child off y=0 spine).
+  const branchEntryEdges = map.edges.filter((edge) => {
+    const from = nodeById.get(edge.fromNodeId);
+    const to = nodeById.get(edge.toNodeId);
+    if (!from || !to) return false;
+    return from.y === 0 && to.y !== 0;
+  });
+
+  if (branchEntryEdges.length === 0) {
+    return { rooms, map };
+  }
+
+  shuffleInPlace(branchEntryEdges);
+  const lockCount = Math.min(
+    branchEntryEdges.length,
+    dangerRating >= 4 ? 2 : dangerRating >= 2 ? 1 : 0
+  );
+  if (lockCount === 0) {
+    return { rooms, map };
+  }
+
+  const lockedEdges = branchEntryEdges.slice(0, lockCount);
+  const keysToPlace: ExpeditionKey[] = lockedEdges.map((_, i) => ({
+    id: generateId(),
+    name: KEY_NAMES[i % KEY_NAMES.length]!,
+  }));
+
+  const nextEdges = map.edges.map((edge) => {
+    const lockIdx = lockedEdges.findIndex((le) => le.id === edge.id);
+    if (lockIdx < 0) return edge;
+    return {
+      ...edge,
+      locked: true,
+      requiredKeyId: keysToPlace[lockIdx]!.id,
+    };
+  });
+
+  const reachableWithoutKeys = getReachableNodeIds({ ...map, edges: nextEdges }, map.startNodeId, []);
+  const keyRoomCandidates = [...reachableWithoutKeys]
+    .map((nodeId) => {
+      const node = nodeById.get(nodeId);
+      const room = node ? roomById.get(node.roomId) : undefined;
+      return room && (room.type === 'Treasure' || room.type === 'Monster') ? room : null;
+    })
+    .filter((r): r is DungeonRoom => Boolean(r));
+
+  shuffleInPlace(keyRoomCandidates);
+  let nextRooms = [...rooms];
+  keysToPlace.forEach((key, i) => {
+    const host = keyRoomCandidates[i % Math.max(1, keyRoomCandidates.length)];
+    if (!host) return;
+    nextRooms = nextRooms.map((r) =>
+      r.id === host.id ? { ...r, keyGrant: key } : r
+    );
+  });
+
   return {
-    rooms,
-    map: {
-      nodes,
-      edges,
-      startNodeId: nodes[0]!.id,
-      bossNodeId: nodes[bossSlotIndex >= 0 ? bossSlotIndex : nodes.length - 1]!.id,
-    },
+    rooms: nextRooms,
+    map: { ...map, edges: nextEdges },
   };
 }
 
@@ -364,15 +436,53 @@ export function getOutgoingEdges(map: DungeonMap, nodeId: string): DungeonMapEdg
   return map.edges.filter((e) => e.fromNodeId === nodeId);
 }
 
-/** Bidirectional neighbors for movement. */
-export function getNeighborNodeIds(map: DungeonMap, nodeId: string): string[] {
+/** Bidirectional neighbors ignoring locks (for map display). */
+export function getAdjacentNodeIds(map: DungeonMap, nodeId: string): string[] {
   const ids: string[] = [];
   for (const e of map.edges) {
-    if (e.locked) continue;
     if (e.fromNodeId === nodeId) ids.push(e.toNodeId);
     else if (e.toNodeId === nodeId) ids.push(e.fromNodeId);
   }
   return ids;
+}
+
+export function isEdgeTraversable(edge: DungeonMapEdge, keysHeld: ExpeditionKey[] = []): boolean {
+  if (!edge.locked) return true;
+  if (!edge.requiredKeyId) return false;
+  return keysHeld.some((k) => k.id === edge.requiredKeyId);
+}
+
+export function getReachableNodeIds(
+  map: DungeonMap,
+  startNodeId: string,
+  keysHeld: ExpeditionKey[] = []
+): Set<string> {
+  const visited = new Set<string>();
+  const queue = [startNodeId];
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+    if (visited.has(nodeId)) continue;
+    visited.add(nodeId);
+    for (const neighborId of getAdjacentNodeIds(map, nodeId)) {
+      const edge = getEdgeBetween(map, nodeId, neighborId);
+      if (edge && isEdgeTraversable(edge, keysHeld)) {
+        queue.push(neighborId);
+      }
+    }
+  }
+  return visited;
+}
+
+/** Bidirectional neighbors the party can move to right now. */
+export function getNeighborNodeIds(
+  map: DungeonMap,
+  nodeId: string,
+  keysHeld: ExpeditionKey[] = []
+): string[] {
+  return getAdjacentNodeIds(map, nodeId).filter((neighborId) => {
+    const edge = getEdgeBetween(map, nodeId, neighborId);
+    return edge ? isEdgeTraversable(edge, keysHeld) : false;
+  });
 }
 
 export function getEdgeBetween(
@@ -387,12 +497,16 @@ export function getEdgeBetween(
 }
 
 /** Single outgoing edge convenience (legacy linear maps). */
-export function getNextNodeId(map: DungeonMap, currentNodeId: string): string | null {
-  const neighbors = getNeighborNodeIds(map, currentNodeId);
+export function getNextNodeId(
+  map: DungeonMap,
+  currentNodeId: string,
+  keysHeld: ExpeditionKey[] = []
+): string | null {
+  const neighbors = getNeighborNodeIds(map, currentNodeId, keysHeld);
   if (neighbors.length === 1) return neighbors[0]!;
-  // Prefer a not-yet-visited forward edge if any.
   const outgoing = getOutgoingEdges(map, currentNodeId);
   const unvisitedOut = outgoing.find((e) => {
+    if (!isEdgeTraversable(e, keysHeld)) return false;
     const n = getNodeById(map, e.toNodeId);
     return n && n.visibility !== 'visited';
   });
@@ -400,7 +514,7 @@ export function getNextNodeId(map: DungeonMap, currentNodeId: string): string | 
 }
 
 export function revealNeighbors(map: DungeonMap, nodeId: string): DungeonMapNode[] {
-  const neighborIds = new Set(getNeighborNodeIds(map, nodeId));
+  const neighborIds = new Set(getAdjacentNodeIds(map, nodeId));
   return map.nodes.map((n) => {
     if (n.id === nodeId) return { ...n, visibility: 'visited' as const };
     if (neighborIds.has(n.id) && n.visibility === 'hidden') {
@@ -428,7 +542,9 @@ export function advanceAlongPath(
   if (currentNodeId) {
     const edge = getEdgeBetween(map, currentNodeId, nextNodeId);
     if (!edge) throw new Error('Destination is not adjacent.');
-    if (edge.locked) throw new Error('That corridor is locked.');
+    if (!isEdgeTraversable(edge, expedition.keysHeld ?? [])) {
+      throw new Error('That corridor is locked.');
+    }
   }
 
   const nextRoomIndex = rooms.findIndex((r) => r.id === nextNode.roomId);
@@ -501,7 +617,7 @@ function syncFogFromProgress(
 
   const revealedIds = new Set<string>();
   for (const id of visitedIds) {
-    for (const nid of getNeighborNodeIds(map, id)) {
+    for (const nid of getAdjacentNodeIds(map, id)) {
       if (!visitedIds.has(nid)) revealedIds.add(nid);
     }
   }
@@ -539,7 +655,34 @@ export function migrateExpeditionMap(exp: ExpeditionState): ExpeditionState {
     currentNodeId: currentNodeId ?? map?.startNodeId,
     movementPoints: mp,
     maxMovementPoints: maxMp,
+    keysHeld: exp.keysHeld ?? [],
   };
+}
+
+/** Pick up a dungeon key from a room if not already held. */
+export function grantRoomKey(
+  expedition: ExpeditionState,
+  room: DungeonRoom
+): Pick<ExpeditionState, 'keysHeld' | 'logs'> | null {
+  if (!room.keyGrant) return null;
+  const held = expedition.keysHeld ?? [];
+  if (held.some((k) => k.id === room.keyGrant!.id)) return null;
+  const key = room.keyGrant;
+  return {
+    keysHeld: [...held, key],
+    logs: [
+      {
+        id: generateId(),
+        text: `🗝️ Found the ${key.name}! Locked corridors may now open.`,
+        type: 'info',
+        timestamp: Date.now(),
+      },
+    ],
+  };
+}
+
+export function hasKey(expedition: ExpeditionState, keyId: string): boolean {
+  return (expedition.keysHeld ?? []).some((k) => k.id === keyId);
 }
 
 export function countVisitedNodes(map: DungeonMap): number {

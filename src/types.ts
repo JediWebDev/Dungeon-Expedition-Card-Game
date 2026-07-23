@@ -148,7 +148,15 @@ export type RoomType =
   | 'Merchant'
   | 'Trap'
   | 'Mystery Event'
+  | 'Gambler'
+  | 'Imprisoned Recruit'
   | 'Boss';
+
+/** Key picked up during an expedition (unlocks matching corridors). */
+export interface ExpeditionKey {
+  id: string;
+  name: string;
+}
 
 export interface Monster {
   /** Stable id for turn targeting (required for turn-based combat). */
@@ -231,6 +239,10 @@ export interface DungeonRoom {
     equipment?: Equipment;
     relic?: Relic;
   };
+  /** Grants a dungeon key when the room is resolved (Phase 4). */
+  keyGrant?: ExpeditionKey;
+  /** Hero waiting to be freed (Imprisoned Recruit rooms). */
+  imprisonedHero?: Hero;
 }
 
 /** Fog-of-war visibility for a map node (Phase 2+ UI). Phase 1 keeps this in sync with room status. */
@@ -301,6 +313,8 @@ export interface ExpeditionState {
   movementPoints?: number;
   /** Starting / cap for movement points (campfire restores up toward this). */
   maxMovementPoints?: number;
+  /** Keys collected this run — unlock gated corridors on the map. */
+  keysHeld?: ExpeditionKey[];
   status: 'planning' | 'running' | 'room_active' | 'victory' | 'defeat' | 'retreat';
   logs: CombatLog[];
   goldEarned: number;
